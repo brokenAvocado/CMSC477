@@ -39,22 +39,24 @@ def draw_detections(frame, detections):
 
 def p_loop(ep_robot_loop, ep_chassis_loop, Tpose, Rpose):
     vel = 0.5
-    Px = 1
-    offsetX = 0.5
-    Py = 1
+    Px = 2
+    offsetX = .8
+    Py = 2
     offsetY = 0
-    Pz = 90
+    Pz = 300
 
-    if(abs(Tpose[2]-offsetX) > 0.02):
-        ep_chassis.move(x=Px*(Tpose[2]-offsetX), y=0, z=0, xy_speed=vel).wait_for_completed(0.025)
+    velx = Px*(Tpose[2]-offsetX)
+    vely = Py*(Tpose[0]-offsetY)
+    velz = Pz*Rpose[1]
 
-    if(abs(Tpose[0]-offsetY) > 0.02):
-        ep_chassis.move(x=0, y=Py*(Tpose[0]-offsetY), z=0, xy_speed=vel).wait_for_completed(0.025)
-    
-    if(abs(Rpose[1]) > 0.088):
-        ep_chassis.move(x=0, y=0, z=-Pz*Rpose[1], xy_speed=vel, z_speed=45).wait_for_completed(0.025)
+    if(abs(Tpose[2]-offsetX) < 0.02):
+        velx = 0
+    if(abs(Tpose[0]-offsetY) < 0.02):
+        vely = 0
+    if(abs(Rpose[1]) < 0.044):
+        velz = 0
 
-    print("poll")
+    ep_chassis.drive_speed(x=velx, y=vely, z=velz, timeout = 0.02)
 
 def rotationToEuler(Rpose):
     roll=np.arctan2(Rpose[1][0],Rpose[0][0])
@@ -88,7 +90,7 @@ def detect_tag_loop(ep_robot, ep_chassis, ep_camera, apriltag):
 
             # print(rotationToEuler(R_ca))
             R_ca = rotationToEuler(R_ca)
-            print("poll")
+            # print("poll")
             p_loop(ep_robot, ep_chassis, t_ca, R_ca)
         
         draw_detections(img, detections)
