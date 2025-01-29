@@ -39,7 +39,11 @@ def draw_detections(frame, detections):
 
 def p_loop(ep_robot_loop, ep_chassis_loop, pose):
     vel = 0.7
-    pose[0]
+    Px = 1
+    offsetX = 0.4
+    Py = 1
+    offsetY = 0
+    ep_chassis.move(x=Px*(pose[2]-offsetX), y=Py*(pose[0]-offsetY), z=0, xy_speed=vel).wait_for_completed()
     
 
 def detect_tag_loop(ep_robot, ep_chassis, ep_camera, apriltag):
@@ -62,10 +66,10 @@ def detect_tag_loop(ep_robot, ep_chassis, ep_camera, apriltag):
             t_ca, R_ca = get_pose_apriltag_in_camera_frame(detection)
             print('t_ca', t_ca)
 
+            p_loop(ep_robot, ep_chassis, t_ca)
+
         draw_detections(img, detections)
         cv2.imshow("img", img)
-        
-        p_loop(ep_robot, ep_chassis, t_ca)
 
         if cv2.waitKey(1) == ord('q'):
             break
