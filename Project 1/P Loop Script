@@ -37,6 +37,11 @@ def draw_detections(frame, detections):
         cv2.line(frame, top_left, bottom_right, color=(0, 0, 255), thickness=2)
         cv2.line(frame, top_right, bottom_left, color=(0, 0, 255), thickness=2)
 
+def p_loop(ep_robot_loop, ep_chassis_loop, pose):
+    vel = 0.7
+    pose[0]
+    
+
 def detect_tag_loop(ep_robot, ep_chassis, ep_camera, apriltag):
     while True:
         try:
@@ -59,6 +64,9 @@ def detect_tag_loop(ep_robot, ep_chassis, ep_camera, apriltag):
 
         draw_detections(img, detections)
         cv2.imshow("img", img)
+        
+        p_loop(ep_robot, ep_chassis, t_ca)
+
         if cv2.waitKey(1) == ord('q'):
             break
 
