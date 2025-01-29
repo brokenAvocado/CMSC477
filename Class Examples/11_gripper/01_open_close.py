@@ -20,8 +20,9 @@ from robomaster import robot
 
 
 if __name__ == '__main__':
+    robomaster.config.ROBOT_IP_STR = "192.168.50.121"
     ep_robot = robot.Robot()
-    ep_robot.initialize(conn_type="sta")
+    ep_robot.initialize(conn_type="sta", sn="3JKCH8800100UB")
 
     ep_gripper = ep_robot.gripper
 
