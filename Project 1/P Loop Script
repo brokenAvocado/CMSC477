@@ -37,13 +37,32 @@ def draw_detections(frame, detections):
         cv2.line(frame, top_left, bottom_right, color=(0, 0, 255), thickness=2)
         cv2.line(frame, top_right, bottom_left, color=(0, 0, 255), thickness=2)
 
-def p_loop(ep_robot_loop, ep_chassis_loop, pose):
-    vel = 0.7
+def p_loop(ep_robot_loop, ep_chassis_loop, Tpose, Rpose):
+    vel = 0.5
     Px = 1
-    offsetX = 0.4
+    offsetX = 0.5
     Py = 1
     offsetY = 0
-    ep_chassis.move(x=Px*(pose[2]-offsetX), y=Py*(pose[0]-offsetY), z=0, xy_speed=vel).wait_for_completed()
+    Pz = 90
+
+    if(abs(Tpose[2]-offsetX) > 0.02):
+        ep_chassis.move(x=Px*(Tpose[2]-offsetX), y=0, z=0, xy_speed=vel).wait_for_completed(0.025)
+
+    if(abs(Tpose[0]-offsetY) > 0.02):
+        ep_chassis.move(x=0, y=Py*(Tpose[0]-offsetY), z=0, xy_speed=vel).wait_for_completed(0.025)
+    
+    if(abs(Rpose[1]) > 0.088):
+        ep_chassis.move(x=0, y=0, z=-Pz*Rpose[1], xy_speed=vel, z_speed=45).wait_for_completed(0.025)
+
+    print("poll")
+
+def rotationToEuler(Rpose):
+    roll=np.arctan2(Rpose[1][0],Rpose[0][0])
+    yaw=np.arctan2(-Rpose[2][0],np.sqrt(Rpose[2][1]**2+Rpose[2][2]**2))
+    pitch=np.arctan2(Rpose[2][1],Rpose[2][2])
+    const = 1 #180/np.pi
+
+    return [const*roll, const*yaw, const*pitch]
     
 
 def detect_tag_loop(ep_robot, ep_chassis, ep_camera, apriltag):
@@ -60,14 +79,18 @@ def detect_tag_loop(ep_robot, ep_chassis, ep_camera, apriltag):
         detections = apriltag.find_tags(gray)
 
         if len(detections) > 0:
-            assert len(detections) == 1 # Assume there is only one AprilTag to track
+            # assert len(detections) == 1 # Assume there is only one AprilTag to track
             detection = detections[0]
 
             t_ca, R_ca = get_pose_apriltag_in_camera_frame(detection)
-            print('t_ca', t_ca)
+            # print('t_ca', t_ca)
+            # print('R_ca', R_ca)
 
-            p_loop(ep_robot, ep_chassis, t_ca)
-
+            # print(rotationToEuler(R_ca))
+            R_ca = rotationToEuler(R_ca)
+            print("poll")
+            p_loop(ep_robot, ep_chassis, t_ca, R_ca)
+        
         draw_detections(img, detections)
         cv2.imshow("img", img)
 
