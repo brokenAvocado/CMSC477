@@ -24,7 +24,19 @@ class AprilTagDetector:
 def get_pose_apriltag_in_camera_frame(detection):
     R_ca = detection.pose_R
     t_ca = detection.pose_t
-    return t_ca.flatten(), R_ca
+
+    roll = np.arctan2(R_ca[1][0],R_ca[0][0])
+    yaw = np.arctan2(-R_ca[2][0],np.sqrt(R_ca[2][1]**2+R_ca[2][2]**2))
+    pitch = np.arctan2(R_ca[2][1],R_ca[2][2])
+    const = 1 #180/np.pi
+    
+    rotation = [roll, yaw, pitch]
+
+    t_ca = t_ca.flatten()
+    t_ca[2] = t_ca[2]*np.cos(pitch)
+    t_ca[0] = t_ca[0]*np.cos(yaw)
+
+    return t_ca, rotation
 
 def draw_detections(frame, detections):
     for detection in detections:
@@ -84,13 +96,17 @@ def control_loop(ep_robot_loop, ep_chassis_loop, Tpose, Rpose, sumX, sumY, sumZ,
 
     return sumX, sumY, sumZ, errorX, errorY
 
-def rotationToEuler(Rpose):
-    roll=np.arctan2(Rpose[1][0],Rpose[0][0])
-    yaw=np.arctan2(-Rpose[2][0],np.sqrt(Rpose[2][1]**2+Rpose[2][2]**2))
-    pitch=np.arctan2(Rpose[2][1],Rpose[2][2])
-    const = 1 #180/np.pi
+def closest(detections):
+    closestDist = float('inf')
+    closestTag = 0
 
-    return [const*roll, const*yaw, const*pitch]
+    for tag in detections:
+        pos, _ = get_pose_apriltag_in_camera_frame(tag)
+        if np.linalg.norm([pos[0], pos[2]]) < closestDist:
+            closestDist = np.linalg.norm([pos[0], pos[2]])
+            closestTag = tag
+
+    return closestTag
 
 def detect_tag_loop(ep_camera, apriltag):
     while True:
@@ -107,13 +123,11 @@ def detect_tag_loop(ep_camera, apriltag):
 
         if len(detections) > 0:
             # assert len(detections) == 1 # Assume there is only one AprilTag to track
-            for tags in detections: 
-                print(tags.tag_id)
-
-                t_ca, R_ca = get_pose_apriltag_in_camera_frame(tags)
-                R_ca = rotationToEuler(R_ca)
-                print("Position = " + str(t_ca))
-                print("Rotation = " + str(R_ca))
+            tags = closest(detections)
+            print(tags.tag_id)
+            # t_ca, R_ca = get_pose_apriltag_in_camera_frame(tags)
+            # print("Position = " + str(t_ca))
+            # print("Rotation = " + str(R_ca))
 
         draw_detections(img, detections)
         cv2.imshow("img", img)
@@ -154,9 +168,6 @@ def motionControl(ep_robot, ep_chassis, ep_camera, apriltag):
             t_ca, R_ca = get_pose_apriltag_in_camera_frame(detection)
             # print('t_ca', t_ca)
             # print('R_ca', R_ca)
-
-            # print(rotationToEuler(R_ca))
-            R_ca = rotationToEuler(R_ca)
             # print("poll")
             oldRunTime = runTime
             runTime = time.time()
@@ -175,32 +186,36 @@ def motionControl(ep_robot, ep_chassis, ep_camera, apriltag):
             plt.ylabel("Error (sec)")
             plt.show()
             break
-            
-
+    
 if __name__ == '__main__':
-    # More legible printing from numpy.
-    np.set_printoptions(precision=3, suppress=True, linewidth=120)
+    path = DJI("Project 1\\lab1.csv")
+    path.search()
+    path.plot()
 
-    robomaster.config.ROBOT_IP_STR = "192.168.50.121"
-    ep_robot = robot.Robot()
-    ep_robot.initialize(conn_type="sta", sn="3JKCH8800100UB")
+# if __name__ == '__main__':
+#     # More legible printing from numpy.
+#     np.set_printoptions(precision=3, suppress=True, linewidth=120)
 
-    ep_chassis = ep_robot.chassis
-    ep_camera = ep_robot.camera
-    ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
+#     robomaster.config.ROBOT_IP_STR = "192.168.50.121"
+#     ep_robot = robot.Robot()
+#     ep_robot.initialize(conn_type="sta", sn="3JKCH8800100UB")
 
-    K = np.array([[314, 0, 320], [0, 314, 180], [0, 0, 1]]) # Camera focal length and center pixel
-    marker_size_m = 0.153 # Size of the AprilTag in meters
-    apriltag = AprilTagDetector(K, threads=2, marker_size_m=marker_size_m)
+#     ep_chassis = ep_robot.chassis
+#     ep_camera = ep_robot.camera
+#     ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
 
-    try:
-        detect_tag_loop(ep_camera, apriltag)
-    except KeyboardInterrupt:
-        pass
-    except Exception as e:
-        print(traceback.format_exc())
-    finally:
-        print('Waiting for robomaster shutdown')
-        ep_camera.stop_video_stream()
-        ep_robot.close()
+#     K = np.array([[314, 0, 320], [0, 314, 180], [0, 0, 1]]) # Camera focal length and center pixel
+#     marker_size_m = 0.153 # Size of the AprilTag in meters
+#     apriltag = AprilTagDetector(K, threads=2, marker_size_m=marker_size_m)
+
+#     try:
+#         detect_tag_loop(ep_camera, apriltag)
+#     except KeyboardInterrupt:
+#         pass
+#     except Exception as e:
+#         print(traceback.format_exc())
+#     finally:
+#         print('Waiting for robomaster shutdown')
+#         ep_camera.stop_video_stream()
+#         ep_robot.close()
 

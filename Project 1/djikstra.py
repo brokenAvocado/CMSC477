@@ -62,15 +62,15 @@ class DJI:
         
         for row in range(0, len(self.matrix[0])):
             for col in range(0, len(self.matrix)):
-                if self.matrix[row][col] == '1':
-                    xs.append(col)
-                    ys.append(row)
-                if self.matrix[row][col] == '2':
+                if self.matrix[col][row] == '2':
                     start.append(col)
                     start.append(row)
-                if self.matrix[row][col] == '3':
+                elif self.matrix[col][row] == '3':
                     end.append(col)
                     end.append(row)
+                elif self.matrix[col][row] != '0':
+                    xs.append(col)
+                    ys.append(row)
 
         self.graph = ax.plot(xs,ys,'ko')
         self.graph = ax.plot(start[0],start[1],'ro')
