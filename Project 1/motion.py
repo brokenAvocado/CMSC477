@@ -108,7 +108,28 @@ def closest(detections):
 
     return closestTag
 
+def relative2world(posTag, tag_id, matrixMap):
+    index = []
+    scalingFactor = 0.266/3
+    
+    for row in matrixMap:
+        for col in row:
+            if col == str(tag_id):
+                index[0] = row
+                index[1] = col
+
+    robotX = col*scalingFactor-scalingFactor-posTag[0]
+    robotY = row*scalingFactor-scalingFactor-posTag[1]
+    
+
 def detect_tag_loop(ep_camera, apriltag):
+    scaling_factor = 0.266/3
+
+    pathfinding = DJI("lab1.csv")
+
+    pathfinding.search()
+    ax = pathfinding.plot()
+        
     while True:
         try:
             img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
@@ -122,12 +143,10 @@ def detect_tag_loop(ep_camera, apriltag):
         detections = apriltag.find_tags(gray)
 
         if len(detections) > 0:
-            # assert len(detections) == 1 # Assume there is only one AprilTag to track
             tags = closest(detections)
             print(tags.tag_id)
-            # t_ca, R_ca = get_pose_apriltag_in_camera_frame(tags)
-            # print("Position = " + str(t_ca))
-            # print("Rotation = " + str(R_ca))
+
+        
 
         draw_detections(img, detections)
         cv2.imshow("img", img)
@@ -187,35 +206,35 @@ def motionControl(ep_robot, ep_chassis, ep_camera, apriltag):
             plt.show()
             break
     
-# if __name__ == '__main__':
-#     path = DJI("Project 1\\lab1.csv")
-#     path.search()
-#     path.plot()
-
 if __name__ == '__main__':
-    # More legible printing from numpy.
-    np.set_printoptions(precision=3, suppress=True, linewidth=120)
+    path = DJI("Project 1\\lab1.csv")
+    path.search()
+    path.plot(True)
 
-    robomaster.config.ROBOT_IP_STR = "192.168.50.121"
-    ep_robot = robot.Robot()
-    ep_robot.initialize(conn_type="sta", sn="3JKCH8800100UB")
+# if __name__ == '__main__':
+#     # More legible printing from numpy.
+#     np.set_printoptions(precision=3, suppress=True, linewidth=120)
 
-    ep_chassis = ep_robot.chassis
-    ep_camera = ep_robot.camera
-    ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
+#     robomaster.config.ROBOT_IP_STR = "192.168.50.121"
+#     ep_robot = robot.Robot()
+#     ep_robot.initialize(conn_type="sta", sn="3JKCH8800100UB")
 
-    K = np.array([[314, 0, 320], [0, 314, 180], [0, 0, 1]]) # Camera focal length and center pixel
-    marker_size_m = 0.153 # Size of the AprilTag in meters
-    apriltag = AprilTagDetector(K, threads=2, marker_size_m=marker_size_m)
+#     ep_chassis = ep_robot.chassis
+#     ep_camera = ep_robot.camera
+#     ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
 
-    try:
-        detect_tag_loop(ep_camera, apriltag)
-    except KeyboardInterrupt:
-        pass
-    except Exception as e:
-        print(traceback.format_exc())
-    finally:
-        print('Waiting for robomaster shutdown')
-        ep_camera.stop_video_stream()
-        ep_robot.close()
+#     K = np.array([[314, 0, 320], [0, 314, 180], [0, 0, 1]]) # Camera focal length and center pixel
+#     marker_size_m = 0.153 # Size of the AprilTag in meters
+#     apriltag = AprilTagDetector(K, threads=2, marker_size_m=marker_size_m)
+
+#     try:
+#         detect_tag_loop(ep_camera, apriltag)
+#     except KeyboardInterrupt:
+#         pass
+#     except Exception as e:
+#         print(traceback.format_exc())
+#     finally:
+#         print('Waiting for robomaster shutdown')
+#         ep_camera.stop_video_stream()
+#         ep_robot.close()
 

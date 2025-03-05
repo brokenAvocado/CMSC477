@@ -29,7 +29,9 @@ class DJI:
         path = os.path.join(currDir, self.filepath)
         with open(path, mode="r") as file:
             for lines in csv.reader(file):
-                self.matrix.append(lines)
+                self.matrix.insert(0,lines)
+                
+        print(self.matrix)
 
     def giveStart(self):
         for row in self.matrix:
@@ -63,18 +65,18 @@ class DJI:
         for row in range(0, len(self.matrix[0])):
             for col in range(0, len(self.matrix)):
                 if self.matrix[col][row] == '2':
-                    start.append(col)
                     start.append(row)
+                    start.append(col)
                 elif self.matrix[col][row] == '3':
-                    end.append(col)
                     end.append(row)
+                    end.append(col)
                 elif self.matrix[col][row] != '0':
-                    xs.append(col)
-                    ys.append(row)
+                    xs.append(row)
+                    ys.append(col)
 
         self.graph = ax.plot(xs,ys,'ko')
-        self.graph = ax.plot(start[0],start[1],'ro')
-        self.graph = ax.plot(end[0],end[1],'go')
+        self.graph = ax.plot(start[0],start[1],'go')
+        self.graph = ax.plot(end[0],end[1],'ro')
         self.graph = ax.plot([],[], 'bx', markersize = 3)[0]
 
         ani = animation.FuncAnimation(fig=fig, func=self.animate, frames=500, interval=0)
@@ -135,13 +137,13 @@ class DJI:
 
         for point in visited:
             point = point[1:-1].split(", ")
-            self.resultx.append(int(point[0]))
-            self.resulty.append(int(point[1]))
+            self.resultx.append(int(point[1]))
+            self.resulty.append(int(point[0]))
 
         for nodes in path:
             nodes = nodes[1:-1].split(", ")
-            self.pathx.append(int(nodes[0]))
-            self.pathy.append(int(nodes[1]))
+            self.pathx.append(int(nodes[1]))
+            self.pathy.append(int(nodes[0]))
 
     def animate(self, frame):
         self.graph.set_xdata(self.resultx[:frame*20])
