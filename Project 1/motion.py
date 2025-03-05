@@ -120,6 +120,8 @@ def relative2world(posTag, tag_id, matrixMap):
 
     robotX = col*scalingFactor-scalingFactor-posTag[0]
     robotY = row*scalingFactor-scalingFactor-posTag[1]
+
+    return robotX, robotY
     
 
 def detect_tag_loop(ep_camera, apriltag):
@@ -145,8 +147,6 @@ def detect_tag_loop(ep_camera, apriltag):
         if len(detections) > 0:
             tags = closest(detections)
             print(tags.tag_id)
-
-        
 
         draw_detections(img, detections)
         cv2.imshow("img", img)
