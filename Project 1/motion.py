@@ -10,7 +10,7 @@ from robomaster import camera
 import matplotlib.pyplot as plt
 from djikstra import DJI
 
-class AprilTagDetector:
+class AprilTagDetector: # Given
     def __init__(self, K, family="tag36h11", threads=2, marker_size_m=0.16):
         self.camera_params = [K[0, 0], K[1, 1], K[0, 2], K[1, 2]]
         self.marker_size_m = marker_size_m
@@ -21,6 +21,13 @@ class AprilTagDetector:
             camera_params=self.camera_params, tag_size=self.marker_size_m)
         return detections
 
+'''
+Desc: gets the april tag orientation in Euler Angles (Roll, Pitch, Yaw)
+and position of the tag with corrected pitch (accounting for camera)
+
+Input: detection object (comes from AprilTagDetector)
+Output: t_ca (position array 1x3), and rotation (1x3)
+'''
 def get_pose_apriltag_in_camera_frame(detection):
     R_ca = detection.pose_R
     t_ca = detection.pose_t
@@ -38,7 +45,7 @@ def get_pose_apriltag_in_camera_frame(detection):
 
     return t_ca, rotation
 
-def draw_detections(frame, detections):
+def draw_detections(frame, detections): # Given
     for detection in detections:
         pts = detection.corners.reshape((-1, 1, 2)).astype(np.int32)
 
@@ -51,6 +58,16 @@ def draw_detections(frame, detections):
         cv2.line(frame, top_left, bottom_right, color=(0, 0, 255), thickness=2)
         cv2.line(frame, top_right, bottom_left, color=(0, 0, 255), thickness=2)
 
+'''
+Desc: Proportional-Integral control loop for the robot to follow an April tag
+
+Input:
+- Tpose: position of the april tag
+- Rpose: orientation of the april tag
+- sumX, sumY, sumZ: summation term for the integral part of the control loop
+- dt: delta time for the integral loop
+Output: 
+'''
 def control_loop(ep_robot_loop, ep_chassis_loop, Tpose, Rpose, sumX, sumY, sumZ, dt):
     Px = 3
     offsetX = .5
@@ -96,6 +113,12 @@ def control_loop(ep_robot_loop, ep_chassis_loop, Tpose, Rpose, sumX, sumY, sumZ,
 
     return sumX, sumY, sumZ, errorX, errorY
 
+'''
+Desc: finds the nearest april tag in the camera view based on pure distance to robot
+
+Input: detections
+Output: closestTag object
+'''
 def closest(detections):
     closestDist = float('inf')
     closestTag = 0
@@ -108,6 +131,16 @@ def closest(detections):
 
     return closestTag
 
+'''
+Desc: converts the position in the maze to the real world
+
+Input: 
+- posTag: the position of the desired tag
+- tag_id: the id of the desired tag
+- matrixMap: the matrix representation of the maze
+Output:
+- robotX, robotY: the position of the robot in real world
+'''
 def relative2world(posTag, tag_id, matrixMap):
     index = []
     scalingFactor = 0.266/3
@@ -122,7 +155,6 @@ def relative2world(posTag, tag_id, matrixMap):
     robotY = row*scalingFactor-scalingFactor-posTag[1]
 
     return robotX, robotY
-    
 
 def detect_tag_loop(ep_camera, apriltag):
     scaling_factor = 0.266/3
