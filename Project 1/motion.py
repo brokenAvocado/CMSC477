@@ -23,23 +23,23 @@ class AprilTagDetector: # Given
 
 # X, Y coordinates, X and Y orientation
 tagDict = {
-    30: [[0.532, 1.995, 0], [-1, 0, 0]],
-    31: [[0.798, 1.995, 0], [1, 0, 0]],
-    32: [[0.532, 1.463, 0], [-1, 0, 0]],
-    33: [[0.798, 1.463, 0], [1, 0, 0]],
-    34: [[0.665, 1.064, 0], [0, -1, 0]],
-    35: [[1.197, 2.128, 0], [0, -1, 0]],
-    36: [[1.729, 2.128, 0], [0, -1, 0]],
-    37: [[1.463, 1.33, 0], [0, 1, 0]],
-    38: [[1.33, 0.931, 0], [-1, 0, 0]],
-    39: [[1.596, 0.931, 0], [1, 0, 0]],
-    40: [[1.33, 0.399, 0], [-1, 0, 0]],
-    41: [[1.596, 0.399, 0], [1, 0, 0]],
-    42: [[2.128, 1.995, 0], [-1, 0, 0]],
-    43: [[2.394, 1.995, 0], [1, 0, 0]],
-    44: [[2.128, 1.463, 0], [-1, 0, 0]],
-    45: [[2.394, 1.463, 0], [1, 0, 0]],
-    46: [[2.261, 1.064, 0], [0, -1, 0]]
+    30: [[0.532, 1.995, 0], [-1, 1, 0]],
+    31: [[0.798, 1.995, 0], [1, 1, 0]],
+    32: [[0.532, 1.463, 0], [-1, 1, 0]],
+    33: [[0.798, 1.463, 0], [1, 1, 0]],
+    34: [[0.665, 1.064, 0], [1, -1, 0]],
+    35: [[1.197, 2.128, 0], [1, -1, 0]],
+    36: [[1.729, 2.128, 0], [1, -1, 0]],
+    37: [[1.463, 1.33, 0], [1, 1, 0]],
+    38: [[1.33, 0.931, 0], [-1, 1, 0]],
+    39: [[1.596, 0.931, 0], [1, 1, 0]],
+    40: [[1.33, 0.399, 0], [-1, 1, 0]],
+    41: [[1.596, 0.399, 0], [1, 1, 0]],
+    42: [[2.128, 1.995, 0], [-1, 1, 0]],
+    43: [[2.394, 1.995, 0], [1, 1, 0]],
+    44: [[2.128, 1.463, 0], [-1, 1, 0]],
+    45: [[2.394, 1.463, 0], [1, 1, 0]],
+    46: [[2.261, 1.064, 0], [1, -1, 0]]
 }
 
 '''
@@ -56,7 +56,7 @@ def get_pose_apriltag_in_camera_frame(detection):
     roll = np.arctan2(R_ca[1][0],R_ca[0][0])
     yaw = np.arctan2(-R_ca[2][0],np.sqrt(R_ca[2][1]**2+R_ca[2][2]**2))
     pitch = np.arctan2(R_ca[2][1],R_ca[2][2])
-    const = 180/np.pi
+    const = 1 #180/np.pi
     
     rotation = [const*roll, const*yaw, const*pitch]
 
@@ -162,24 +162,26 @@ Input:
 Output:
 - robotX, robotY: the position of the robot in real world
 '''
-def relative2world(posTag, tag_id, matrixMap):
-    index = []
-    scalingFactor = 0.266/3
+def relative2world(tag):
+    tag_id = tag.tag_id
+    pos, rot = get_pose_apriltag_in_camera_frame(tag)
+    r_x = pos[2]
+    r_y = pos[0]
+
+    yaw = rot[1]
     
-    for row in matrixMap:
-        for col in row:
-            if col == str(tag_id):
-                index.append(matrixMap.index(row))
-                index.append(row.index(col))
-    # print(index)
-    print(tag_id)
+    tgx = tagDict[tag_id][0][0]
+    tgy = tagDict[tag_id][0][1]
+    tgox = tagDict[tag_id][1][0]
+    tgoy = tagDict[tag_id][1][1]
 
-    robotX = index[0]*scalingFactor-scalingFactor-posTag[0]
-    robotY = index[1]*scalingFactor-scalingFactor-posTag[2]
-    gridX = robotX*scalingFactor
-    gridY = robotY*scalingFactor
+    x_rel = r_x*np.cos(yaw) - r_y*np.sin(yaw)
+    y_rel = r_x*np.sin(yaw) + r_y*np.cos(yaw)
+    x = tgx+x_rel*tgox
+    y = tgy+y_rel*tgoy
 
-    return robotX, robotY, gridX, gridY
+    return x, y
+    
 
 def detect_tag_loop(ep_camera, apriltag):
     pathfinding = DJI("Project 1\\Lab1.csv")
@@ -201,11 +203,10 @@ def detect_tag_loop(ep_camera, apriltag):
         if len(detections) > 0:
             tag = closest(detections)
             pos, rot = get_pose_apriltag_in_camera_frame(tag)
-            print(pos)
             print(rot)
+            # x, y = relative2world(tag)
             # x, y, _, _ = relative2world(pos, tag.tag_id, pathfinding.matrix)
-            # print(x)
-            # print(y)
+            # print(f'Tag ID: {tag.tag_id}| Robot X: {x}| Robot Y: {y}')
             # print(tags.tag_id)
 
         draw_detections(img, detections)
