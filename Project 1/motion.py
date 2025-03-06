@@ -8,7 +8,9 @@ import robomaster
 from robomaster import robot
 from robomaster import camera
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 from djikstra import DJI
+import multiprocessing 
 
 class AprilTagDetector: # Given
     def __init__(self, K, family="tag36h11", threads=2, marker_size_m=0.16):
@@ -41,6 +43,8 @@ tagDict = {
     45: [[2.394, 1.463, 0], [1, 1, np.pi]],
     46: [[2.261, 1.064, 0], [1, 1, np.pi*3/2]]
 }
+
+scalingFactor = 0.266/3
 
 '''
 Desc: gets the april tag orientation in Euler Angles (Roll, Pitch, Yaw)
@@ -156,11 +160,9 @@ def closest(detections):
 Desc: converts the position in the maze to the real world
 
 Input: 
-- posTag: the position of the robot relative to the tag
-- tag_id: the id of the desired tag
-- matrixMap: the matrix representation of the maze
+- tag: the object with the information on the tag
 Output:
-- robotX, robotY: the position of the robot in real world
+- abs_x, abs_y: the position of the robot in real world
 '''
 def relative2world(tag):
     tag_id = tag.tag_id
@@ -187,11 +189,22 @@ def relative2world(tag):
     x_abs = tgx-x_rel_rot*tgox
     y_abs = tgy+y_rel_rot*tgoy
     return x_abs, y_abs
-    
 
 def detect_tag_loop(ep_camera, apriltag):
+    # Constants
+    yaw_lim = np.pi/3
+
+    # Init Graphing Functions
     pathfinding = DJI("Project 1\\Lab1.csv")
-        
+    pathfinding.initPlot()
+    fig, ax = plt.subplots()
+
+    graph = plt.plot(np.array(pathfinding.xs)*scalingFactor, np.array(pathfinding.ys)*scalingFactor,'ko')
+    graph = ax.plot([],[],'go')[0]
+    ax.set(xlim=[0, 3.5],ylim=[0, 3.5])
+    plt.draw()
+    plt.pause(0.0001)
+
     while True:
         try:
             img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
@@ -201,22 +214,42 @@ def detect_tag_loop(ep_camera, apriltag):
 
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         gray.astype(np.uint8)
-        ax = pathfinding.plot()
-        plt.ion()
-        plt.show()
-        plt.draw()
-        plt.pause(0.001)
         detections = apriltag.find_tags(gray)
 
         if len(detections) > 0:
             tag = closest(detections)
-            # pos, rot = get_pose_apriltag_in_camera_frame(tag)
-            # print(rot)
             x, y = relative2world(tag)
-            # x, y, _, _ = relative2world(pos, tag.tag_id, pathfinding.matrix)
             print(f'Tag ID: {tag.tag_id}| Robot X: {x}| Robot Y: {y}')
-            # print(tags.tag_id)
 
+        # Graphing Functions
+        graph.set_xdata(x)
+        graph.set_ydata(y)
+        plt.draw()
+        plt.pause(0.00001)
+
+        draw_detections(img, detections)
+        cv2.imshow("img", img)
+
+        if cv2.waitKey(1) == ord('q'):
+            break
+
+def test_tag(ep_camera, apriltag):
+    while True:
+        try:
+            img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
+        except Empty:
+            time.sleep(0.001)
+            continue
+
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        gray.astype(np.uint8)
+        detections = apriltag.find_tags(gray)
+
+        if len(detections) > 0:
+            tag = closest(detections)
+            x, y = relative2world(tag)
+            _, rot = get_pose_apriltag_in_camera_frame(tag)
+            print(rot)
 
         draw_detections(img, detections)
         cv2.imshow("img", img)
@@ -275,29 +308,8 @@ def motionControl(ep_robot, ep_chassis, ep_camera, apriltag):
             plt.ylabel("Error (sec)")
             plt.show()
             break
-    
-# if __name__ == '__main__':
-#     path = DJI("Project 1\\lab1.csv")
-#     path.search()
-#     path.plot(True)
 
 if __name__ == '__main__':
-    # path = DJI("Project 1\\lab1.csv")
-    # begin = 30
-    # end = 46
-    # scalingFactor = 0.266/3
-    
-    # for i in range(30, 46):
-    #     print("For ID: " + str(i))
-    #     for row in path.matrix:
-    #         for col in row:
-    #             if col == str(i):
-    #                 print(path.matrix.index(row)*scalingFactor)
-    #                 print(row.index(col)*scalingFactor)
-    
-    # More legible printing from numpy.
-    # np.set_printoptions(precision=3, suppress=True, linewidth=120)
-
     robomaster.config.ROBOT_IP_STR = "192.168.50.121"
     ep_robot = robot.Robot()
     ep_robot.initialize(conn_type="sta", sn="3JKCH8800100UB")
@@ -311,6 +323,7 @@ if __name__ == '__main__':
     apriltag = AprilTagDetector(K, threads=2, marker_size_m=marker_size_m)
 
     try:
+        # test_tag(ep_camera, apriltag)
         detect_tag_loop(ep_camera, apriltag)
     except KeyboardInterrupt:
         pass

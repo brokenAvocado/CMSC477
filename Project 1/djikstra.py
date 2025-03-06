@@ -38,8 +38,6 @@ class DJI:
         with open(path, mode="r") as file:
             for lines in csv.reader(file):
                 self.matrix.insert(0,lines)
-                
-        print(self.matrix)
 
     def giveStart(self):
         for row in self.matrix:
