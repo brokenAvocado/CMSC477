@@ -11,10 +11,18 @@ class DJI:
         self.filepath = givenFilepath
         self.matrix = []
 
+        # Finding the start and end
         self.startRow = 0
         self.startCol = 0
         self.createMatrix()
 
+        # Plotting variables
+        self.xs = []
+        self.ys = []
+        self.start = []
+        self.end = []
+
+        # Result and path variables
         self.resultx = []
         self.resulty = []
 
@@ -52,37 +60,39 @@ class DJI:
     def dist(self, x1, x0):
         return float(((x1[0]-x0[0])**2+(x1[1]-x0[1])**2)**0.5)
     
+    def initPlot(self):
+        self.xs = []
+        self.ys = []
+        self.start = []
+        self.end = []
+        
+        for row in range(0, len(self.matrix[0])):
+            for col in range(0, len(self.matrix)):
+                if self.matrix[col][row] == '2':
+                    self.start.append(row)
+                    self.start.append(col)
+                elif self.matrix[col][row] == '3':
+                    self.end.append(row)
+                    self.end.append(col)
+                elif self.matrix[col][row] != '0':
+                    self.xs.append(row)
+                    self.ys.append(col)
+    
     def interp(self, elems = 50):
         self.interpy = np.linspace(self.giveStart[0], self.giveEnd[0], elems)
         self.interpx = np.interp(self.interpy, self.pathy, self.pathx)
 
     def plot(self, pathBool=False):
         fig, ax = plt.subplots()
-        xs, ys = [], []
-        start = []
-        end = []
-        
-        for row in range(0, len(self.matrix[0])):
-            for col in range(0, len(self.matrix)):
-                if self.matrix[col][row] == '2':
-                    start.append(row)
-                    start.append(col)
-                elif self.matrix[col][row] == '3':
-                    end.append(row)
-                    end.append(col)
-                elif self.matrix[col][row] != '0':
-                    xs.append(row)
-                    ys.append(col)
 
-        self.graph = ax.plot(xs,ys,'ko')
-        self.graph = ax.plot(start[0],start[1],'go')
-        self.graph = ax.plot(end[0],end[1],'ro')
+        self.graph = ax.plot(self.xs,self.ys,'ko')
+        self.graph = ax.plot(self.start[0],self.start[1],'go')
+        self.graph = ax.plot(self.end[0],self.end[1],'ro')
         self.graph = ax.plot([],[], 'bx', markersize = 3)[0]
 
         ani = animation.FuncAnimation(fig=fig, func=self.animate, frames=500, interval=0)
         if pathBool:
             ax.plot(self.pathx, self.pathy, 'ro', markersize=3)
-        plt.show()
         # ani.save("dfs_map1.gif", writer="pillow", fps = 30)
 
     def search(self):

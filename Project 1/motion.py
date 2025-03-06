@@ -175,22 +175,22 @@ def relative2world(tag):
     tgox = tagDict[tag_id][1][0]
     tgoy = tagDict[tag_id][1][1]
     multiple = tagDict[tag_id][1][2]//(np.pi/2)
+    angle = tagDict[tag_id][1][2]
 
     x_rel = r_x*np.cos(yaw) - r_y*np.sin(yaw)
     y_rel = r_x*np.sin(yaw) + r_y*np.cos(yaw)
-    dims_unrotated = np.array([[tgx+x_rel*tgox, 0],[0, tgy+y_rel*tgoy]])
+    # dims_unrotated = np.array([[x_rel*tgox, 0],[0, y_rel*tgoy]])
+    # dims_rotated = np.rot90(dims_unrotated, multiple)
+    x_rel_rot = x_rel*np.cos(angle) - y_rel*np.sin(angle)
+    y_rel_rot = x_rel*np.sin(angle) + y_rel*np.cos(angle) 
     
-    abs_dims = np.rot90(dims_unrotated, multiple)
-    x_abs = -abs_dims[0][0]
-    y_abs = abs_dims[1][1]
-
+    x_abs = tgx-x_rel_rot*tgox
+    y_abs = tgy+y_rel_rot*tgoy
     return x_abs, y_abs
     
 
 def detect_tag_loop(ep_camera, apriltag):
     pathfinding = DJI("Project 1\\Lab1.csv")
-    # pathfinding.search()
-    # ax = pathfinding.plot()
         
     while True:
         try:
@@ -201,7 +201,11 @@ def detect_tag_loop(ep_camera, apriltag):
 
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         gray.astype(np.uint8)
-
+        ax = pathfinding.plot()
+        plt.ion()
+        plt.show()
+        plt.draw()
+        plt.pause(0.001)
         detections = apriltag.find_tags(gray)
 
         if len(detections) > 0:
@@ -212,6 +216,7 @@ def detect_tag_loop(ep_camera, apriltag):
             # x, y, _, _ = relative2world(pos, tag.tag_id, pathfinding.matrix)
             print(f'Tag ID: {tag.tag_id}| Robot X: {x}| Robot Y: {y}')
             # print(tags.tag_id)
+
 
         draw_detections(img, detections)
         cv2.imshow("img", img)
@@ -297,7 +302,7 @@ if __name__ == '__main__':
     ep_robot = robot.Robot()
     ep_robot.initialize(conn_type="sta", sn="3JKCH8800100UB")
 
-    ep_chassis = ep_robot.chassis
+    # ep_chassis = ep_robot.chassis
     ep_camera = ep_robot.camera
     ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
 
