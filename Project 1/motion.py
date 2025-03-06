@@ -147,12 +147,14 @@ Output: closestTag object
 def closest(detections):
     closestDist = float('inf')
     closestTag = 0
+    yaw_lim = np.pi/3
 
     for tag in detections:
-        pos, _ = get_pose_apriltag_in_camera_frame(tag)
+        pos, rot = get_pose_apriltag_in_camera_frame(tag)
         if np.linalg.norm([pos[0], pos[2]]) < closestDist:
-            closestDist = np.linalg.norm([pos[0], pos[2]])
-            closestTag = tag
+            if abs(rot[1]) < yaw_lim:
+                closestDist = np.linalg.norm([pos[0], pos[2]])
+                closestTag = tag
 
     return closestTag
 
@@ -221,11 +223,11 @@ def detect_tag_loop(ep_camera, apriltag):
             x, y = relative2world(tag)
             print(f'Tag ID: {tag.tag_id}| Robot X: {x}| Robot Y: {y}')
 
-        # Graphing Functions
-        graph.set_xdata(x)
-        graph.set_ydata(y)
-        plt.draw()
-        plt.pause(0.00001)
+            # Graphing Functions
+            graph.set_xdata(x)
+            graph.set_ydata(y)
+            plt.draw()
+            plt.pause(0.00001)
 
         draw_detections(img, detections)
         cv2.imshow("img", img)
