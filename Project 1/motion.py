@@ -23,23 +23,23 @@ class AprilTagDetector: # Given
 
 # X, Y coordinates, X and Y orientation
 tagDict = {
-    30: [[0.532, 1.995, 0], [-1, 1, 0]],
-    31: [[0.798, 1.995, 0], [1, 1, 0]],
-    32: [[0.532, 1.463, 0], [-1, 1, 0]],
-    33: [[0.798, 1.463, 0], [1, 1, 0]],
-    34: [[0.665, 1.064, 0], [1, -1, 0]],
-    35: [[1.197, 2.128, 0], [1, -1, 0]],
-    36: [[1.729, 2.128, 0], [1, -1, 0]],
-    37: [[1.463, 1.33, 0], [1, 1, 0]],
-    38: [[1.33, 0.931, 0], [-1, 1, 0]],
-    39: [[1.596, 0.931, 0], [1, 1, 0]],
-    40: [[1.33, 0.399, 0], [-1, 1, 0]],
-    41: [[1.596, 0.399, 0], [1, 1, 0]],
-    42: [[2.128, 1.995, 0], [-1, 1, 0]],
-    43: [[2.394, 1.995, 0], [1, 1, 0]],
-    44: [[2.128, 1.463, 0], [-1, 1, 0]],
-    45: [[2.394, 1.463, 0], [1, 1, 0]],
-    46: [[2.261, 1.064, 0], [1, -1, 0]]
+    30: [[0.532, 1.995, 0], [1, 1, 0]],
+    31: [[0.798, 1.995, 0], [1, 1, np.pi]],
+    32: [[0.532, 1.463, 0], [1, 1, 0]],
+    33: [[0.798, 1.463, 0], [1, 1, np.pi]],
+    34: [[0.665, 1.064, 0], [1, 1, np.pi*3/2]],
+    35: [[1.197, 2.128, 0], [1, 1, np.pi*3/2]],
+    36: [[1.729, 2.128, 0], [1, 1, np.pi*3/2]],
+    37: [[1.463, 1.33, 0], [1, 1, np.pi/2]],
+    38: [[1.33, 0.931, 0], [1, 1, 0]],
+    39: [[1.596, 0.931, 0], [1, 1, np.pi]],
+    40: [[1.33, 0.399, 0], [1, 1, 0]],
+    41: [[1.596, 0.399, 0], [1, 1, np.pi]],
+    42: [[2.128, 1.995, 0], [1, 1, 0]],
+    43: [[2.394, 1.995, 0], [1, 1, np.pi]],
+    44: [[2.128, 1.463, 0], [1, 1, 0]],
+    45: [[2.394, 1.463, 0], [1, 1, np.pi]],
+    46: [[2.261, 1.064, 0], [1, 1, np.pi*3/2]]
 }
 
 '''
@@ -174,13 +174,17 @@ def relative2world(tag):
     tgy = tagDict[tag_id][0][1]
     tgox = tagDict[tag_id][1][0]
     tgoy = tagDict[tag_id][1][1]
+    multiple = tagDict[tag_id][1][2]//(np.pi/2)
 
     x_rel = r_x*np.cos(yaw) - r_y*np.sin(yaw)
     y_rel = r_x*np.sin(yaw) + r_y*np.cos(yaw)
-    x = tgx+x_rel*tgox
-    y = tgy+y_rel*tgoy
+    dims_unrotated = np.array([[tgx+x_rel*tgox, 0],[0, tgy+y_rel*tgoy]])
+    
+    abs_dims = np.rot90(dims_unrotated, multiple)
+    x_abs = -abs_dims[0][0]
+    y_abs = abs_dims[1][1]
 
-    return x, y
+    return x_abs, y_abs
     
 
 def detect_tag_loop(ep_camera, apriltag):
@@ -202,11 +206,11 @@ def detect_tag_loop(ep_camera, apriltag):
 
         if len(detections) > 0:
             tag = closest(detections)
-            pos, rot = get_pose_apriltag_in_camera_frame(tag)
-            print(rot)
-            # x, y = relative2world(tag)
+            # pos, rot = get_pose_apriltag_in_camera_frame(tag)
+            # print(rot)
+            x, y = relative2world(tag)
             # x, y, _, _ = relative2world(pos, tag.tag_id, pathfinding.matrix)
-            # print(f'Tag ID: {tag.tag_id}| Robot X: {x}| Robot Y: {y}')
+            print(f'Tag ID: {tag.tag_id}| Robot X: {x}| Robot Y: {y}')
             # print(tags.tag_id)
 
         draw_detections(img, detections)
