@@ -76,12 +76,14 @@ class DJI:
                     self.xs.append(row)
                     self.ys.append(col)
     
-    def interp(self, elems = 50):
-        self.interpy = np.linspace(self.giveStart[0], self.giveEnd[0], elems)
+    def interp(self):
+        # smallerx = np.array
         self.interpx = np.interp(self.interpy, self.pathy, self.pathx)
 
     def plot(self, pathBool=False):
         fig, ax = plt.subplots()
+
+        print(self.end[0])
 
         self.graph = ax.plot(self.xs,self.ys,'ko')
         self.graph = ax.plot(self.start[0],self.start[1],'go')
@@ -157,3 +159,7 @@ class DJI:
         self.graph.set_xdata(self.resultx[:frame*20])
         self.graph.set_ydata(self.resulty[:frame*20])
         
+if __name__ == '__main__':
+    path = DJI("Project 1\\lab1.csv")
+    path.initPlot()
+    path.plot()

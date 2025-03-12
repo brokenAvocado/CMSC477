@@ -94,7 +94,7 @@ Input:
 Output: 
 '''
 def control_loop(ep_robot, ep_chassis, robot_pos, dest_pos, Rpose, angle):
-    Px = .8
+    Px = .5
     offsetX = 0
 
     Py = Px
@@ -116,7 +116,7 @@ def control_loop(ep_robot, ep_chassis, robot_pos, dest_pos, Rpose, angle):
 
     velx = Px*(errorX)
     vely = -Py*(errorY)
-    velz = Pz*(Rpose[1])
+    velz = Pz*(Rpose[1]-angle)
     
     abs_velx = velx*np.cos(angle) - vely*np.sin(angle)
     abs_vely = velx*np.sin(angle) + vely*np.cos(angle)
@@ -130,7 +130,7 @@ def control_loop(ep_robot, ep_chassis, robot_pos, dest_pos, Rpose, angle):
 
     ep_chassis.drive_speed(x=abs_velx, y=abs_vely, z=velz, timeout = 0.05)
 
-    return errorX, errorY
+    return errorX, errorY, angle
 
 '''
 Desc: finds the nearest april tag in the camera view based on pure distance to robot
@@ -320,6 +320,7 @@ def maze_movement(ep_robot, ep_chassis, ep_camera, apriltag):
     # Constants
     plotStart = time.time()
     runTime = 0
+    angle = 0
 
     timeArray = []
     errorXPlot = []
@@ -333,6 +334,9 @@ def maze_movement(ep_robot, ep_chassis, ep_camera, apriltag):
 
     path_xcoord = np.array(pathfinding.pathx)*scalingFactor
     path_ycoord = np.array(pathfinding.pathy)*scalingFactor
+    path_xcoord = path_xcoord[::-1]
+    path_ycoord = path_ycoord[::-1]
+
     path_ind = 0
 
     fig, ax = plt.subplots()
@@ -357,19 +361,26 @@ def maze_movement(ep_robot, ep_chassis, ep_camera, apriltag):
         detections = apriltag.find_tags(gray)
 
         tag = closest(detections)
-        if tag != 0:
+        if tag != None:
             x, y = relative2world(tag)
             _, Rpose = get_pose_apriltag_in_camera_frame(tag)
-            print(f'Tag ID: {tag.tag_id}| Robot X: {x}| Robot Y: {y}')
+            print(f'Tag ID: {tag.tag_id}| Robot X: {x}| Robot Y: {y}| Target X:{path_xcoord[path_ind]}| Target Y: {path_ycoord[path_ind]}')
 
-            errorX, errorY = control_loop(ep_robot, ep_chassis, [x, y], [path_xcoord[path_ind], path_ycoord[path_ind]], Rpose)
-            print(f'Errors| Robot X: {errorX}, Robot Y: {errorY}')
+            errorX, errorY, _= control_loop(ep_robot, ep_chassis, [x, y], [path_xcoord[path_ind], path_ycoord[path_ind]], Rpose, angle)
+            # print(f'Errors| Robot X: {errorX}, Robot Y: {errorY}')
 
             # Graphing Functions
             graph.set_xdata(x)
             graph.set_ydata(y)
             plt.draw()
             plt.pause(0.00001)
+
+            if(abs(errorX) < 0.08) and (abs(errorY) < 0.08):
+                path_ind += 1
+        # else:
+            # angle += np.pi/2
+            # if angle > np.pi:
+            #     angle = 0
 
         draw_detections(img, detections)
         cv2.imshow("img", img)
