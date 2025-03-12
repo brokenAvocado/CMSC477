@@ -87,56 +87,50 @@ def draw_detections(frame, detections): # Given
 Desc: Proportional-Integral control loop for the robot to follow an April tag
 
 Input:
-- Tpose: position of the april tag
-- Rpose: orientation of the april tag
+- robot_pos: Robot current position
+- dest_pos: Desired destination
 - sumX, sumY, sumZ: summation term for the integral part of the control loop
 - dt: delta time for the integral loop
 Output: 
 '''
-def control_loop(ep_robot_loop, ep_chassis_loop, Tpose, Rpose, sumX, sumY, sumZ, dt):
-    Px = 3
-    offsetX = .5
-    Py = 3
+def control_loop(ep_robot, ep_chassis, robot_pos, dest_pos, Rpose, angle):
+    Px = .8
+    offsetX = 0
+
+    Py = Px
     offsetY = 0
+    
     Pz = 300
 
-    Ix = 3
-    Iy = 3
-    # Iz = 0.1
+    # pi/2 = straight up +y
+    # 0 = looking to the +x (starting position)
+    # pi = looking to the -x
 
-    errorX = Tpose[2]-offsetX
-    errorY = Tpose[0]-offsetY
+    errorX = dest_pos[0]-robot_pos[0]-offsetX
+    errorY = dest_pos[1]-robot_pos[1]-offsetY
 
     if(abs(errorX) < 0.02):
         errorX = 0
     if(abs(errorY) < 0.02):
         errorY = 0
 
-    sumX += errorX*dt
-    sumY += errorY*dt
-    sumZ += Rpose[1]*dt
+    velx = Px*(errorX)
+    vely = -Py*(errorY)
+    velz = Pz*(Rpose[1])
+    
+    abs_velx = velx*np.cos(angle) - vely*np.sin(angle)
+    abs_vely = velx*np.sin(angle) + vely*np.cos(angle)
 
-    # if (abs(sumX) > 0.2):
-    #     sumX = 0.2
-    # if (abs(sumY) > 0.2):
-    #     sumY = 0.2
+    # if(abs(errorX) < 0.02):
+    #     velx = 0
+    # if(abs(errorY) < 0.02):
+    #     vely = 0
+    # if(abs(Rpose[1]) < 0.044):
+    #     velz = 0
 
-    print(str(sumX) + ", " + str(sumY) + "," + str(sumZ))
+    ep_chassis.drive_speed(x=abs_velx, y=abs_vely, z=velz, timeout = 0.05)
 
-    velx = Px*(errorX) + Ix*sumX
-    vely = Py*(errorY) + Iy*sumY
-    velz = Pz*Rpose[1]
-
-    if(abs(errorX) < 0.02):
-        velx = 0
-    if(abs(errorY) < 0.02):
-        vely = 0
-    if(abs(Rpose[1]) < 0.044):
-        velz = 0
-
-    ep_chassis.drive_speed(x=velx, y=vely, z=velz, timeout = 0.02)
-
-    return sumX, sumY, sumZ, errorX, errorY
+    return errorX, errorY
 
 '''
 Desc: finds the nearest april tag in the camera view based on pure distance to robot
@@ -155,7 +149,9 @@ def closest(detections):
             if abs(rot[1]) < yaw_lim:
                 closestDist = np.linalg.norm([pos[0], pos[2]])
                 closestTag = tag
-
+    if closestTag == 0:
+        return None
+    
     return closestTag
 
 '''
@@ -172,7 +168,8 @@ def relative2world(tag):
     r_x = pos[2]
     r_y = pos[0]
 
-    yaw = rot[1]
+    # yaw = rot[1]
+    yaw = 0
     
     tgx = tagDict[tag_id][0][0]
     tgy = tagDict[tag_id][0][1]
@@ -191,6 +188,38 @@ def relative2world(tag):
     x_abs = tgx-x_rel_rot*tgox
     y_abs = tgy+y_rel_rot*tgoy
     return x_abs, y_abs
+
+def test_tag(ep_camera, apriltag):
+    while True:
+        try:
+            img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
+        except Empty:
+            time.sleep(0.001)
+            continue
+
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        gray.astype(np.uint8)
+        detections = apriltag.find_tags(gray)
+
+        if len(detections) > 0:
+            tag = closest(detections)
+            x, y = relative2world(tag)
+            _, rot = get_pose_apriltag_in_camera_frame(tag)
+            print(rot)
+
+        draw_detections(img, detections)
+        cv2.imshow("img", img)
+
+        if cv2.waitKey(1) == ord('q'):
+            break
+
+'''
+Without using motion commands, track the robot going through a maze.
+
+Input: april tag
+Output: mapping of the robot in the maze
+
+'''
 
 def detect_tag_loop(ep_camera, apriltag):
     # Constants
@@ -228,30 +257,6 @@ def detect_tag_loop(ep_camera, apriltag):
             graph.set_ydata(y)
             plt.draw()
             plt.pause(0.00001)
-
-        draw_detections(img, detections)
-        cv2.imshow("img", img)
-
-        if cv2.waitKey(1) == ord('q'):
-            break
-
-def test_tag(ep_camera, apriltag):
-    while True:
-        try:
-            img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
-        except Empty:
-            time.sleep(0.001)
-            continue
-
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        gray.astype(np.uint8)
-        detections = apriltag.find_tags(gray)
-
-        if len(detections) > 0:
-            tag = closest(detections)
-            x, y = relative2world(tag)
-            _, rot = get_pose_apriltag_in_camera_frame(tag)
-            print(rot)
 
         draw_detections(img, detections)
         cv2.imshow("img", img)
@@ -311,12 +316,73 @@ def motionControl(ep_robot, ep_chassis, ep_camera, apriltag):
             plt.show()
             break
 
+def maze_movement(ep_robot, ep_chassis, ep_camera, apriltag):
+    # Constants
+    plotStart = time.time()
+    runTime = 0
+
+    timeArray = []
+    errorXPlot = []
+    errorYPlot = []
+    yaw_lim = np.pi/3
+
+    # Init Graphing Functions
+    pathfinding = DJI("Project 1\\Lab1.csv")
+    pathfinding.initPlot()
+    pathfinding.search()
+
+    path_xcoord = np.array(pathfinding.pathx)*scalingFactor
+    path_ycoord = np.array(pathfinding.pathy)*scalingFactor
+    path_ind = 0
+
+    fig, ax = plt.subplots()
+    graph = plt.plot(np.array(pathfinding.xs)*scalingFactor, np.array(pathfinding.ys)*scalingFactor,'ko')
+    graph = plt.plot(path_xcoord, path_ycoord, 'ro', markersize=3)
+    graph = ax.plot([],[],'go')[0]
+    ax.set(xlim=[0, 3.5],ylim=[0, 3.5])
+
+
+    plt.draw()
+    plt.pause(0.0001)
+
+    while True:
+        try:
+            img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
+        except Empty:
+            time.sleep(0.001)
+            continue
+
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        gray.astype(np.uint8)
+        detections = apriltag.find_tags(gray)
+
+        tag = closest(detections)
+        if tag != 0:
+            x, y = relative2world(tag)
+            _, Rpose = get_pose_apriltag_in_camera_frame(tag)
+            print(f'Tag ID: {tag.tag_id}| Robot X: {x}| Robot Y: {y}')
+
+            errorX, errorY = control_loop(ep_robot, ep_chassis, [x, y], [path_xcoord[path_ind], path_ycoord[path_ind]], Rpose)
+            print(f'Errors| Robot X: {errorX}, Robot Y: {errorY}')
+
+            # Graphing Functions
+            graph.set_xdata(x)
+            graph.set_ydata(y)
+            plt.draw()
+            plt.pause(0.00001)
+
+        draw_detections(img, detections)
+        cv2.imshow("img", img)
+
+        if cv2.waitKey(1) == ord('q'):
+            break
+
 if __name__ == '__main__':
     robomaster.config.ROBOT_IP_STR = "192.168.50.121"
     ep_robot = robot.Robot()
     ep_robot.initialize(conn_type="sta", sn="3JKCH8800100UB")
 
-    # ep_chassis = ep_robot.chassis
+    ep_chassis = ep_robot.chassis
     ep_camera = ep_robot.camera
     ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
 
@@ -326,7 +392,8 @@ if __name__ == '__main__':
 
     try:
         # test_tag(ep_camera, apriltag)
-        detect_tag_loop(ep_camera, apriltag)
+        # detect_tag_loop(ep_camera, apriltag)
+        maze_movement(ep_robot, ep_chassis, ep_camera, apriltag)
     except KeyboardInterrupt:
         pass
     except Exception as e:
