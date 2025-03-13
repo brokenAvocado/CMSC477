@@ -94,7 +94,7 @@ Input:
 Output: 
 '''
 def control_loop(ep_robot, ep_chassis, robot_pos, dest_pos, Rpose, angle):
-    Px = .5
+    Px = 1.5
     offsetX = 0
 
     Py = Px
@@ -116,7 +116,7 @@ def control_loop(ep_robot, ep_chassis, robot_pos, dest_pos, Rpose, angle):
 
     velx = Px*(errorX)
     vely = -Py*(errorY)
-    velz = Pz*(Rpose[1]-angle)
+    velz = Pz*(Rpose[1])
     
     abs_velx = velx*np.cos(angle) - vely*np.sin(angle)
     abs_vely = velx*np.sin(angle) + vely*np.cos(angle)
@@ -142,6 +142,7 @@ def closest(detections):
     closestDist = float('inf')
     closestTag = 0
     yaw_lim = np.pi/3
+    # yaw_lim=5
 
     for tag in detections:
         pos, rot = get_pose_apriltag_in_camera_frame(tag)
@@ -250,7 +251,9 @@ def detect_tag_loop(ep_camera, apriltag):
         if len(detections) > 0:
             tag = closest(detections)
             x, y = relative2world(tag)
-            print(f'Tag ID: {tag.tag_id}| Robot X: {x}| Robot Y: {y}')
+            Tpose, Rpose = get_pose_apriltag_in_camera_frame(tag)
+            # print(f'Tag ID: {tag.tag_id}| X dist: {Tpose[0]} | Y dist: {Tpose[2]} | Yaw: {180/np.pi*Rpose[1]}| Yaw (alt): {180/np.pi*np.arctan(Tpose[0]/Tpose[1])}')
+            # print(f'Tag ID: {tag.tag_id}| X dist: {Tpose[0]} | Y dist: {Tpose[2]} | Ratio: {Tpose[0]/Tpose[2]}')
 
             # Graphing Functions
             graph.set_xdata(x)
@@ -321,6 +324,7 @@ def maze_movement(ep_robot, ep_chassis, ep_camera, apriltag):
     plotStart = time.time()
     runTime = 0
     angle = 0
+    tries = 0
 
     timeArray = []
     errorXPlot = []
@@ -348,45 +352,53 @@ def maze_movement(ep_robot, ep_chassis, ep_camera, apriltag):
 
     plt.draw()
     plt.pause(0.0001)
+    with open("path.txt", "w") as file:
+        while True:
+            try:
+                img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
+            except Empty:
+                time.sleep(0.001)
+                continue
 
-    while True:
-        try:
-            img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
-        except Empty:
-            time.sleep(0.001)
-            continue
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            gray.astype(np.uint8)
+            detections = apriltag.find_tags(gray)
 
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        gray.astype(np.uint8)
-        detections = apriltag.find_tags(gray)
+            tag = closest(detections)
+            if tag != None:
+                tries = 0
+                x, y = relative2world(tag)
+                _, Rpose = get_pose_apriltag_in_camera_frame(tag)
+                print(f'Tag ID: {tag.tag_id}| Tries: {tries} | Robot X: {x}| Robot Y: {y}| Target X:{path_xcoord[path_ind]}| Target Y: {path_ycoord[path_ind]}')
 
-        tag = closest(detections)
-        if tag != None:
-            x, y = relative2world(tag)
-            _, Rpose = get_pose_apriltag_in_camera_frame(tag)
-            print(f'Tag ID: {tag.tag_id}| Robot X: {x}| Robot Y: {y}| Target X:{path_xcoord[path_ind]}| Target Y: {path_ycoord[path_ind]}')
+                tag_angle = tagDict[tag.tag_id][1][2]
+                angle = 2*np.pi-tag_angle
+                errorX, errorY, _= control_loop(ep_robot, ep_chassis, [x, y], [path_xcoord[path_ind], path_ycoord[path_ind]], Rpose, angle)
+                # print(f'Errors| Robot X: {errorX}, Robot Y: {errorY}')
 
-            errorX, errorY, _= control_loop(ep_robot, ep_chassis, [x, y], [path_xcoord[path_ind], path_ycoord[path_ind]], Rpose, angle)
-            # print(f'Errors| Robot X: {errorX}, Robot Y: {errorY}')
+                # Graphing Functions
+                graph.set_xdata(x)
+                graph.set_ydata(y)
 
-            # Graphing Functions
-            graph.set_xdata(x)
-            graph.set_ydata(y)
-            plt.draw()
-            plt.pause(0.00001)
+                file.write(f"{x}, {y}\n")
 
-            if(abs(errorX) < 0.08) and (abs(errorY) < 0.08):
-                path_ind += 1
-        # else:
-            # angle += np.pi/2
-            # if angle > np.pi:
-            #     angle = 0
+                plt.draw()
+                plt.pause(0.00001)
 
-        draw_detections(img, detections)
-        cv2.imshow("img", img)
+                if(abs(errorX) < 0.04) and (abs(errorY) < 0.04):
+                    path_ind += 1
+            else:
+                if tries < 5:
+                    ep_chassis.drive_speed(x=-0.1, y=0, z=0, timeout = 0.05)
+                    tries += 1
+                else:
+                    ep_chassis.drive_speed(x=0, y=0, z=8, timeout = 0.05)
 
-        if cv2.waitKey(1) == ord('q'):
-            break
+            draw_detections(img, detections)
+            cv2.imshow("img", img)
+
+            if cv2.waitKey(1) == ord('q'):
+                break
 
 if __name__ == '__main__':
     robomaster.config.ROBOT_IP_STR = "192.168.50.121"

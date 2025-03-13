@@ -29,8 +29,8 @@ class DJI:
         self.pathx = []
         self.pathy = []
 
-        self.interpx = np.array([])
-        self.interpy = np.array([])
+        self.interpx = []
+        self.interpy = []
 
     def createMatrix(self):
         currDir = os.getcwd()
@@ -77,13 +77,13 @@ class DJI:
                     self.ys.append(col)
     
     def interp(self):
-        # smallerx = np.array
-        self.interpx = np.interp(self.interpy, self.pathy, self.pathx)
+        self.interpx = np.arange(1, 31, 0.2)
+        self.interpy = np.interp(self.interpx, self.pathx[::-1], self.pathy[::-1])
 
     def plot(self, pathBool=False):
         fig, ax = plt.subplots()
 
-        print(self.end[0])
+        print(self.start[0])
 
         self.graph = ax.plot(self.xs,self.ys,'ko')
         self.graph = ax.plot(self.start[0],self.start[1],'go')
@@ -93,6 +93,9 @@ class DJI:
         ani = animation.FuncAnimation(fig=fig, func=self.animate, frames=500, interval=0)
         if pathBool:
             ax.plot(self.pathx, self.pathy, 'ro', markersize=3)
+            ax.plot(self.interpx, self.interpy, 'mo', markersize=3)
+
+        plt.show()
         # ani.save("dfs_map1.gif", writer="pillow", fps = 30)
 
     def search(self):
@@ -155,6 +158,8 @@ class DJI:
             self.pathx.append(int(nodes[1]))
             self.pathy.append(int(nodes[0]))
 
+        self.interp()
+
     def animate(self, frame):
         self.graph.set_xdata(self.resultx[:frame*20])
         self.graph.set_ydata(self.resulty[:frame*20])
@@ -162,4 +167,5 @@ class DJI:
 if __name__ == '__main__':
     path = DJI("Project 1\\lab1.csv")
     path.initPlot()
-    path.plot()
+    path.search()
+    path.plot(True)
