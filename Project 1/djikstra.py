@@ -28,6 +28,8 @@ class DJI:
 
         self.pathx = []
         self.pathy = []
+        self.robotx = []
+        self.roboty = []
 
         self.interpx = []
         self.interpy = []
@@ -82,7 +84,7 @@ class DJI:
 
     def plot(self, pathBool=False):
         fig, ax = plt.subplots()
-
+        scalingFactor = 0.266/3
         print(self.start[0])
 
         self.graph = ax.plot(self.xs,self.ys,'ko')
@@ -92,8 +94,17 @@ class DJI:
 
         ani = animation.FuncAnimation(fig=fig, func=self.animate, frames=500, interval=0)
         if pathBool:
+            with open("path.txt", "r") as file:
+                lines = file.readlines()
+                for string in lines:
+                    string = string.strip()
+                    string_list = string.split(",")
+                    self.robotx.append(float(string_list[0])/scalingFactor)
+                    self.roboty.append(float(string_list[1])/scalingFactor)
+
+            ax.plot(self.robotx, self.roboty, 'go', markersize=3)
             ax.plot(self.pathx, self.pathy, 'ro', markersize=3)
-            ax.plot(self.interpx, self.interpy, 'mo', markersize=3)
+            # ax.plot(self.interpx, self.interpy, 'mo', markersize=3)
 
         plt.show()
         # ani.save("dfs_map1.gif", writer="pillow", fps = 30)
