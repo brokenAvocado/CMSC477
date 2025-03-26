@@ -32,8 +32,8 @@ if __name__ == '__main__':
     ep_gripper.pause()
 
     # close gripper
-    # ep_gripper.close(power=50)
-    # time.sleep(1)
-    # ep_gripper.pause()
+    ep_gripper.close(power=100)
+    time.sleep(1)
+    ep_gripper.pause()
 
     ep_robot.close()
