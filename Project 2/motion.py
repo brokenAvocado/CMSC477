@@ -64,8 +64,7 @@ class motion:
         self.ep_chassis = self.ep_robot.chassis
         
         # Camera Init
-        ep_camera = self.ep_robot.camera
-        ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
+        self.ep_camera = self.ep_robot.camera
 
     def gripper_close(self, power=100):
         self.ep_gripper.close(power)
@@ -123,20 +122,6 @@ class motion:
         self.ep_chassis.drive_speed(x=0, y=0, z=-90, timeout=5)
         time.sleep(2)
 
-if __name__ == '__main__':
-    r1 = motion()
-    r1.ep_arm.sub_position(freq=5, callback=r1.arm_position_reader)
-
-    r1.gripper_open()
-
-    r1.lgr()
-    time.sleep(1)
-    r1.move_away()
-
-
-
-    r1.ep_arm.unsub_position()
-    r1.ep_robot.close()
     def scan(self):
         self.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
 
@@ -175,6 +160,9 @@ def aprilTagTest():
     errorY = 10
 
     startTime = time.time()
+    r1.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
+
+
     while True:
         try:
             img = r1.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
@@ -185,35 +173,42 @@ def aprilTagTest():
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         gray.astype(np.uint8)
 
-        while (time.time()-startTime <= 6):
-            r1.ep_chassis.drive_speed(x=0, y=0, z=60, timeout = 0.05)
-            tags = apriltag.find_tags(gray)
-            for tag in tags:
-                if not(tag in objects): 
-                    objects.append(tag)
-
         tags = apriltag.find_tags(gray)
-        target = objects[0]
-        if target in tags:
-            pos, rot = apriltag.get_pose_apriltag_in_camera_frame(target)
-            if errorX > 0.1 and errorY > 0.1:
-                errorX, errorY = r1.move_to_coarse(pos, rot)
-            else:
-                r1.move_to_fine()
 
-
+        if (time.time()-startTime <= 12):
+            r1.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
+            for tag in tags:
+                if not(tag.tag_id in objects): 
+                    objects.append(tag)
         else:
-            r1.ep_chassis.drive_speed(x=0, y=0, z=60, timeout = 0.05)
+            target = objects[0]
+            for tag in tags:
+                if target == tag.tag_id:
+                    pos, rot = apriltag.get_pose_apriltag_in_camera_frame(target)
+                    if errorX > 0.03 and errorY > 0.03:
+                        errorX, errorY = r1.move_to_coarse(pos, rot)
+                    else:
+                        r1.move_to_fine()
+                        r1.lgr()
+                        time.sleep(1)
+                        r1.move_away()
+                else:
+                    r1.ep_chassis.drive_speed(x=0, y=0, z=40, timeout = 0.05)
 
-        print(objects)
+        apriltag.draw_detections(img, tags)
+        cv2.imshow("img", img)
 
+        if cv2.waitKey(1) == ord('q'):
+            break
 
 if __name__ == "__main__":
     # Robot Init
     r1 = motion()
+    r1.gripper_open()
 
     # AprilTag Init
     apriltag = AprilTagDetector()
+    
     '''
     # Pseudo-code
     # list of sorted
@@ -255,6 +250,7 @@ if __name__ == "__main__":
     except Exception as e:
         print(traceback.format_exc())
     finally:
+        r1.ep_arm.unsub_position()
         print('Waiting for robomaster shutdown')
         r1.ep_camera.stop_video_stream()
         r1.ep_robot.close()
