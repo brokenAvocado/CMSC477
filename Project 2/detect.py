@@ -6,6 +6,8 @@ class Detect:
         self.lower = None
         self.upper = None
         self.mask = None
+        self.FRAME_CENTER_X = None
+        self.FRAME_CENTER_Y = None
 
     def set_lower_mask(self, hue, sat, val):
         hue = 179.0/360.0*hue
@@ -38,6 +40,9 @@ class Detect:
         output = np.zeros_like(frame)
 
         output[self.mask > 0] = (0, 255, 0)
+
+        self.FRAME_CENTER_X = len(frame[0])/2
+        self.FRAME_CENTER_Y = len(frame)/2
 
         return output
     
@@ -153,7 +158,7 @@ def main():
 
             cv2.imshow('Camera', edges_bgr)
 
-            print(detector.line_length(vertical_lines))
+            #print(detector.line_length(vertical_lines))
 
         
 
