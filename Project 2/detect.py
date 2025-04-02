@@ -115,6 +115,13 @@ class Detect:
             combined.append(right_line)
 
         return combined
+    
+    def line_length(self, lines):
+        lengths = []
+        for x1, y1, x2, y2 in lines:
+            length = ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
+            lengths.append(length)
+        return lengths
 
 
 # hsv(134.26, 77.71%, 61.57%)
@@ -145,6 +152,10 @@ def main():
             cv2.circle(edges_bgr, center, 10, (0, 0, 255), -1)  # Red dot
 
             cv2.imshow('Camera', edges_bgr)
+
+            print(detector.line_length(vertical_lines))
+
+        
 
         # Display the captured frame
         cv2.imshow('Camera', edges_bgr)
