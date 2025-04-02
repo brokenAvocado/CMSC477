@@ -58,11 +58,11 @@ class Detect:
 
         return edges
     
-    def center(self, edges):
+    def center(self, edges, tol=15):
         # Get coordinates of all white pixels (value 255)
         white_pixels = np.column_stack(np.where(edges == 255))
 
-        if white_pixels.size == 0:
+        if white_pixels.size < tol:
             return None  # No white pixels, so no edges found
 
         # Calculate the average (mean) x and y coordinates
@@ -127,6 +127,12 @@ class Detect:
             length = ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
             lengths.append(length)
         return lengths
+    
+    def distance(self, lineLengths):
+        avg = np.mean(np.array(lineLengths))
+        # print(avg)
+        distance = 2.156*np.exp(-0.01828*avg)
+        return distance
 
 
 # hsv(134.26, 77.71%, 61.57%)

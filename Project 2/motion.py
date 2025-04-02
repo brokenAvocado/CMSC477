@@ -8,6 +8,7 @@ import time
 import robomaster
 from robomaster import robot
 from robomaster import camera
+import threading
 
 class AprilTagDetector: # Given
     def __init__(self, family="tag36h11", threads=2, marker_size_m=0.16):
@@ -65,6 +66,10 @@ class motion:
         
         # Camera Init
         self.ep_camera = self.ep_robot.camera
+
+        # State Booleans
+        self.isLost = False
+        self.isGrip = False
 
     def gripper_close(self, power=100):
         self.ep_gripper.close(power)
@@ -126,131 +131,39 @@ class motion:
         self.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
 
     def move_to_coarse(self, TPose, Rpose):
-        Px = 1.5
-        Py = Px
-        Pz = 300
+        # AprilTag Parameters
+        # Px = 2
+        # Py = Px
+        # Pz = 300
+        # offsetX = 0.6
+        # offsetY = 0
 
-        offsetX = 0.1
+        # Color Masking Parameters
+        Px = 2
+        Py = 0.01
+        Pz = 300
+        offsetX = 0.3
         offsetY = 0
 
         errorX = TPose[2]-offsetX
         errorY = TPose[0]-offsetY
 
-        if(abs(errorX) < 0.02):
-            errorX = 0
-        if(abs(errorY) < 0.02):
-            errorY = 0
-
         velx = Px*(errorX)
-        vely = -Py*(errorY)
+        vely = Py*(errorY)
         velz = Pz*(Rpose[1])
 
-        self.ep_chassis.drive_speed(x=velx, y=vely, z=velz, timeout = 0.05)
+        if not TPose[2]:
+            velx = 0
+
+        self.ep_chassis.drive_speed(x=velx, y=vely, z=velz, timeout = 0.02)
         return errorX, errorY
 
     def move_to_fine(self):
-        velx = 0.2
-        self.ep_chassis.drive_speed(x=velx, y=0, z=0, timeout = 0.5)
+        self.ep_chassis.drive_speed(x=0.1, y=0, z=0, timeout=5)
+        time.sleep(3.5)
+        self.ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.02)
+        # self.ep_chassis.move(x=0.2, y=0, z=0, xy_speed = 1)
+        self.lgr()
         time.sleep(1)
-        
-def aprilTagTest():
-    init = False
-    objects = []
-    errorX = 10
-    errorY = 10
-
-    startTime = time.time()
-    r1.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
-
-
-    while True:
-        try:
-            img = r1.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
-        except Empty:
-            time.sleep(0.001)
-            continue
-
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        gray.astype(np.uint8)
-
-        tags = apriltag.find_tags(gray)
-
-        if (time.time()-startTime <= 12):
-            r1.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
-            for tag in tags:
-                if not(tag.tag_id in objects): 
-                    objects.append(tag)
-        else:
-            target = objects[0]
-            for tag in tags:
-                if target == tag.tag_id:
-                    pos, rot = apriltag.get_pose_apriltag_in_camera_frame(target)
-                    if errorX > 0.03 and errorY > 0.03:
-                        errorX, errorY = r1.move_to_coarse(pos, rot)
-                    else:
-                        r1.move_to_fine()
-                        r1.lgr()
-                        time.sleep(1)
-                        r1.move_away()
-                else:
-                    r1.ep_chassis.drive_speed(x=0, y=0, z=40, timeout = 0.05)
-
-        apriltag.draw_detections(img, tags)
-        cv2.imshow("img", img)
-
-        if cv2.waitKey(1) == ord('q'):
-            break
-
-if __name__ == "__main__":
-    # Robot Init
-    r1 = motion()
-    r1.gripper_open()
-
-    # AprilTag Init
-    apriltag = AprilTagDetector()
-    
-    '''
-    # Pseudo-code
-    # list of sorted
-    # list of real-life
-    # 
-    # while (real-life != sorted)
-    #   Do once:
-    #       Count number of objects in frame by rotating
-    #   Declare pairs of objects to move
-    #
-    #   Detect object 1
-    #   Go to object 1
-    #   Grasp object 1
-    #   Move to random position
-    #   Drop object 1
-    #
-    #   Detect object 2
-    #   Go to object 2
-    #   Grasp object 2
-    #
-    #   Detect pad 1
-    #   Move to proper place
-    #   Drop object 2
-    #
-    #   (We can't do this yet without detection)
-    #   Detect object 1
-    #   Go to object 1
-    #   Grasp object 1
-    #   Detect pad 1
-    #   Move to proper position
-    #   Drop object 1
-    #
-    #   Repeat
-    '''
-    try:
-        aprilTagTest()
-    except KeyboardInterrupt:
-        pass
-    except Exception as e:
-        print(traceback.format_exc())
-    finally:
-        r1.ep_arm.unsub_position()
-        print('Waiting for robomaster shutdown')
-        r1.ep_camera.stop_video_stream()
-        r1.ep_robot.close()
+        self.move_away()
+        self.isGrip = False
