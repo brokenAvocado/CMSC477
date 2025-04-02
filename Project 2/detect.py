@@ -64,6 +64,57 @@ class Detect:
         cy, cx = np.mean(white_pixels, axis=0).astype(int)  # Note: rows = y, cols = x
 
         return (cx, cy)
+    
+    def sides(self, edges, center_x, angle_thresh=75):
+        lines = cv2.HoughLinesP(edges, rho=1, theta=np.pi / 180,
+                                threshold=40, minLineLength=30, maxLineGap=40)
+
+        if lines is None:
+            return []
+
+        left_group = []
+        right_group = []
+
+        # Separate vertical lines into left and right of the center
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            angle = np.degrees(np.arctan2(y2 - y1, x2 - x1))
+            if abs(angle) > angle_thresh:
+                x_avg = (x1 + x2) / 2
+                if x_avg < center_x:
+                    left_group.append((x1, y1, x2, y2))
+                else:
+                    right_group.append((x1, y1, x2, y2))
+
+        # Helper function to combine group
+        def combine_group(group, flip=False):
+            if not group:
+                return None
+            x1_vals = [line[0] for line in group]
+            x2_vals = [line[2] for line in group]
+            y_vals = [line[1] for line in group] + [line[3] for line in group]
+
+            x1_avg = int(np.mean(x1_vals))
+            x2_avg = int(np.mean(x2_vals))
+            y_min = min(y_vals)
+            y_max = max(y_vals)
+
+            if flip:
+                x1_avg, x2_avg = x2_avg, x1_avg  # Flip for left line
+
+            return (x1_avg, y_max, x2_avg, y_min)
+
+        # Combine both sides
+        combined = []
+        left_line = combine_group(left_group, flip=True)
+        right_line = combine_group(right_group, flip=False)
+
+        if left_line:
+            combined.append(left_line)
+        if right_line:
+            combined.append(right_line)
+
+        return combined
 
 
 # hsv(134.26, 77.71%, 61.57%)
@@ -78,16 +129,22 @@ def main():
 
     while True:
         ret, frame = cam.read()
-
         edges = detector.edges(frame)
-
         center = detector.center(edges)
 
         edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
 
         if center:
-            print("Center:", center)
-            cv2.circle(edges_bgr, center, 5, (0, 0, 255), 5)  # Draw center in red
+            center_x, center_y = center
+            vertical_lines = detector.sides(edges, center_x)
+
+            # Draw on color image
+            edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+            for x1, y1, x2, y2 in vertical_lines:
+                cv2.line(edges_bgr, (x1, y1), (x2, y2), (0, 255, 0), 2)  # Green
+            cv2.circle(edges_bgr, center, 10, (0, 0, 255), -1)  # Red dot
+
+            cv2.imshow('Camera', edges_bgr)
 
         # Display the captured frame
         cv2.imshow('Camera', edges_bgr)
