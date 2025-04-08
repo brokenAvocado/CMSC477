@@ -142,8 +142,13 @@ def main():
     cam = cv2.VideoCapture(0)
 
     detector = Detect()
-    detector.set_lower_mask(114, .2, 0)
-    detector.set_upper_mask(154, 1, 1)
+    # Green Values
+    # detector.set_lower_mask(114, .2, 0)
+    # detector.set_upper_mask(154, 1, 1)
+
+    # Red Values
+    detector.set_lower_mask(0, .760, 0)
+    detector.set_upper_mask(21, 1, 1)
 
     while True:
         ret, frame = cam.read()

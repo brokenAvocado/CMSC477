@@ -140,9 +140,9 @@ class motion:
 
         # Color Masking Parameters
         Px = 2
-        Py = 0.01
+        Py = 0.008
         Pz = 300
-        offsetX = 0.3
+        offsetX = 0.32
         offsetY = 0
 
         errorX = TPose[2]-offsetX
@@ -159,8 +159,8 @@ class motion:
         return errorX, errorY
 
     def move_to_fine(self):
-        self.ep_chassis.drive_speed(x=0.1, y=0, z=0, timeout=5)
-        time.sleep(3.5)
+        self.ep_chassis.drive_speed(x=0.1, y=0, z=0, timeout=10)
+        time.sleep(3.2)
         self.ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.02)
         # self.ep_chassis.move(x=0.2, y=0, z=0, xy_speed = 1)
         self.lgr()

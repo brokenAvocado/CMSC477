@@ -207,14 +207,20 @@ def test2_color():
     '''
     # Detector Init
     detector = Detect()
-    detector.set_lower_mask(114, .6, .2)
-    detector.set_upper_mask(154, 1, 1)
+
+    # Green
+    # detector.set_lower_mask(114, .6, .2)
+    # detector.set_upper_mask(154, 1, 1)
+
+    # Red Values
+    detector.set_lower_mask(0, .760, 0)
+    detector.set_upper_mask(21, 1, 1)
 
     r1.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
     errorX = 10
     errorY = 10
     xTol = 10 # Pixels
-    yTol = 0.02 # Meters
+    yTol = 0.01 # Meters
 
     while True:
         try:
