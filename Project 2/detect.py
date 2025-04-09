@@ -33,7 +33,7 @@ class Detect:
     def detect_object(self, frame):
         hsv = self.BGRtoHSV(frame)
         self.mask = self.mask_image(hsv)
-        self.mask = cv2.medianBlur(self.mask, 7)
+        self.mask = cv2.medianBlur(self.mask, 11)
         kernel = np.ones((5, 5), np.uint8)
         self.mask = cv2.morphologyEx(self.mask, cv2.MORPH_CLOSE, kernel)
 
@@ -45,6 +45,16 @@ class Detect:
         self.FRAME_CENTER_Y = len(frame)/2
 
         return output
+    
+    def mask_image_pls(self, img):
+        mask = np.zeros((img.shape[0], img.shape[1]), dtype="uint8")
+        
+        pts = np.array([[0, img.shape[0]], [img.shape[1], img.shape[0]], [img.shape[1], int(img.shape[0]/2)], [0, int(img.shape[0]/2)]], dtype=np.int32)
+        cv2.fillConvexPoly(mask, pts, 255)
+        
+        masked = cv2.bitwise_and(img, img, mask=mask)
+
+        return masked
     
     def edges(self, frame):
         # Step 1: Detect green blob
@@ -152,7 +162,8 @@ def main():
 
     while True:
         ret, frame = cam.read()
-        edges = detector.edges(frame)
+        masked = detector.mask_image_pls(frame)
+        edges = detector.edges(masked)
         center = detector.center(edges)
 
         edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
@@ -167,7 +178,7 @@ def main():
                 cv2.line(edges_bgr, (x1, y1), (x2, y2), (0, 255, 0), 2)  # Green
             cv2.circle(edges_bgr, center, 10, (0, 0, 255), -1)  # Red dot
 
-            cv2.imshow('Camera', edges_bgr)
+            # cv2.imshow('Camera', edges_bgr)
 
             #print(detector.line_length(vertical_lines))
 
@@ -184,5 +195,5 @@ def main():
     cam.release()
     cv2.destroyAllWindows()
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
