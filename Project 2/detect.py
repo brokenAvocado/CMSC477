@@ -6,11 +6,12 @@ class Detect:
         self.mask = None
         self.FRAME_CENTER_X = None
         self.FRAME_CENTER_Y = None
+        self.object_center = None
 
         
         # Color presets (HUE: 0, 180) (SAT: 0, 255) (VAL: 0, 255)
         self.GREEN = [[57, 51, 0], [77, 255, 255]]
-        self.RED = [[-15, 51, 0], [15, 255, 255]]
+        self.RED = [[-10, 120, 0], [10, 255, 255]]
 
         # Constants
         self.LOWER = 0
@@ -29,7 +30,7 @@ class Detect:
         lower = color[self.LOWER]
         upper = color[self.UPPER]
 
-        if lower[self.HUE] > 0:
+        if lower[self.HUE] >= 0:
             mask = cv2.inRange(img, np.array(lower), np.array(upper))
         else:
             # -HUE to 0
@@ -54,27 +55,40 @@ class Detect:
         self.mask = self.mask_image(hsv, color)
         self.mask = cv2.medianBlur(self.mask, 7)
 
-        # Fill in holes
-        kernel = np.ones((5, 5), np.uint8)
-        self.mask = cv2.morphologyEx(self.mask, cv2.MORPH_CLOSE, kernel)
-
-        output = np.zeros_like(frame)
-
-        output[self.mask > 0] = (0, 255, 0)
-
         if self.FRAME_CENTER_X is None:
             self.FRAME_CENTER_X = len(frame[0])/2
             self.FRAME_CENTER_Y = len(frame)/2
 
-        return output
+        return self.mask
     
     # Take in found object and find its edges
     def edges(self, object):
-        gray = cv2.cvtColor(object, cv2.COLOR_BGR2GRAY)
 
-        edges = cv2.Canny(gray, threshold1=50, threshold2=150)
+        edges = cv2.Canny(object, threshold1=50, threshold2=150)
 
-        return edges
+        # Fill in holes
+        kernel = np.ones((5, 5), np.uint8)
+        edges_closed = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
+
+        return edges_closed
+    
+    # Remove all non brick detections
+    def isolate_brick(self, edge_img):
+        # ⚠️ Use raw edges (must be single-channel)
+        contours, _ = cv2.findContours(edge_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # Create a black image with same shape as input edge image (converted to BGR)
+        height, width = edge_img.shape[:2]
+        output_img = np.zeros((height, width, 1), dtype=np.uint8)
+
+        if contours:
+            # Find the largest contour by area
+            largest_contour = max(contours, key=cv2.contourArea)
+
+            # Draw the largest contour in green
+            cv2.drawContours(output_img, [largest_contour], -1, (255), 2)
+
+        return output_img
     
     # Given edges find the center of the object
     def center(self, edges):
@@ -84,6 +98,8 @@ class Detect:
             return None
 
         cy, cx = np.mean(white_pixels, axis=0).astype(int)
+
+        self.object_center = (cx, cy)
 
         return (cx, cy)
     
@@ -147,11 +163,37 @@ class Detect:
             lengths.append(length)
         return lengths
     
-    def distance(self, lineLengths):
+    # Find distance from robot to object based on side lengths
+    def distance_lines(self, lineLengths):
         avg = np.mean(np.array(lineLengths))
         # print(avg)
         distance = 2.156*np.exp(-0.01828*avg)
         return distance
+    
+    # Find distance from robot to object based on the area of the detected zone
+    def distance_area(self, brick):
+        contour, _ = cv2.findContours(brick, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if contour:
+            A = cv2.contourArea(contour[0], oriented=False)
+
+            print(A)
+        return
+    
+    # Draws the center of the object on the frame
+    def draw_center(self, edges):
+        center = self.center(edges)
+
+        if len(edges.shape) == 2 or edges.shape[2] == 1:
+            edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+        else:
+            edges_bgr = edges.copy()
+
+
+        if center is not None:
+            cv2.circle(edges_bgr, center, 5, (0, 0, 255), -1)
+
+        return edges_bgr
+
 
 
 # hsv(134.26, 77.71%, 61.57%)
@@ -164,10 +206,16 @@ def main():
     while True:
         _, frame = cam.read()
 
-        object = detector.detect_object(frame, detector.GREEN)
+        object = detector.detect_object(frame, detector.RED)
+
+        edges = detector.edges(object)
+
+        brick = detector.isolate_brick(edges)
+
+        detector.distance_area(brick)
 
         # Display the captured frame
-        cv2.imshow('Camera', object)
+        cv2.imshow('Camera', brick)
 
         # Press 'q' to exit the loop
         if cv2.waitKey(1) == ord('q'):
