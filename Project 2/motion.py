@@ -139,8 +139,8 @@ class motion:
         # offsetY = 0
 
         # Color Masking Parameters
-        Px = 2
-        Py = 0.008
+        Px = 1.3
+        Py = 0.005
         Pz = 300
         offsetX = 0.32
         offsetY = 0

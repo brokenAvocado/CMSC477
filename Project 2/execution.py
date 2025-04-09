@@ -203,7 +203,9 @@ def test1_color():
 
 def test2_color():
     '''
-    This is project 0 motion with an added search tags feature (rotates until tag found).
+    Rotates in place until a block is found (with the matching color mask)
+    Uses a P control loop to approach the block, uses a pre-programmed 
+    fine movement state machine to approach the block until it's grabbed.
     '''
     # Detector Init
     detector = Detect()
@@ -278,6 +280,113 @@ def test2_color():
         if cv2.waitKey(1) == ord('q'):
             break
 
+def test3_color():
+    '''
+    Picks up blocks in a pre-programmed sequence, (red to green or green to red).
+
+    Rotates in place until its target is found and then it places it away from 
+    its inital spot.
+
+    Switches from a coarse motion, P-loop based, to a fine motion, pre-programmed
+    state machine.
+    '''
+    # Detector Init
+    detector = Detect()
+
+    # # Green
+    detector.set_lower_mask(114, .6, .2)
+    detector.set_upper_mask(154, 1, 1)
+
+    # # Red Values
+    # detector.set_lower_mask(0, .760, 0)
+    # detector.set_upper_mask(21, 1, 1)
+
+    r1.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
+    errorX = 10
+    errorY = 10
+    xTol = 10 # Pixels
+    yTol = 0.01 # Meters
+
+    findGreen = True
+    pickGreen = False
+    findRed = False
+    pickRed = False
+
+    while True:
+        try:
+            img = r1.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
+        except Empty:
+            time.sleep(0.001)
+            continue
+
+        edges = detector.edges(img)
+        center = detector.center(edges, 15)
+        edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+
+        if not(r1.isGrip):
+            if findGreen:
+                detector.set_lower_mask(114, .6, .2)
+                detector.set_upper_mask(154, 1, 1)
+
+            if findRed:
+                detector.set_lower_mask(0, .760, 0)
+                detector.set_upper_mask(21, 1, 1)
+
+            if center:
+                r1.isLost = False
+
+                # Output tower center pixel
+                center_x, center_y = center
+                vertical_lines = detector.sides(edges, center_x)
+
+                # Draw on color image
+                edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+                for x1, y1, x2, y2 in vertical_lines:
+                    cv2.line(edges_bgr, (x1, y1), (x2, y2), (0, 255, 0), 2)  # Green
+                cv2.circle(edges_bgr, center, 10, (0, 0, 255), -1)  # Red dot
+
+                cv2.imshow('Camera', edges_bgr)
+
+                pos_x = center_x-detector.FRAME_CENTER_X
+                pos_y = detector.distance(detector.line_length(vertical_lines))
+
+                print(f"Green: {findGreen}, Red: {findRed}, Center X: {pos_x}, Distance: {pos_y}")
+                
+                pos = [pos_x, 0, pos_y]
+                rot = [0, 0, 0]
+                errorX, errorY = r1.move_to_coarse(pos, rot)
+
+                if abs(errorX) <= xTol and abs(errorY) <= yTol:
+                    r1.isGrip = True
+
+                    if findGreen:
+                        findGreen = False
+                        pickGreen = True
+                        findRed = True
+
+                    if not(r1.isGrip) and findRed:
+                        findRed = False
+                        pickRed = True
+                        findGreen = True
+
+                    gripThread = threading.Thread(target=r1.move_to_fine)
+                    gripThread.start()
+            else:
+                if not(r1.isLost):
+                    timeStart = time.time()
+                    r1.isLost = True
+
+                if time.time()-timeStart < 18:
+                    r1.ep_chassis.drive_speed(x=0, y=0, z=40, timeout = 0.05)
+                else:
+                    raise Exception("Timeout: no tags found")
+
+        # Display the captured frame
+        cv2.imshow('Camera', edges_bgr)
+
+        if cv2.waitKey(1) == ord('q'):
+            break
+
 def detectTest():
     detector = Detect()
     detector.set_lower_mask(114, .6, .2)
@@ -326,7 +435,7 @@ if __name__ == "__main__":
     r1.gripper_open()
 
     try:
-        test2_color()
+        test3_color()
     except KeyboardInterrupt:
         pass
     except Exception as e:
