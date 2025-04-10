@@ -10,8 +10,11 @@ class Detect:
 
         
         # Color presets (HUE: 0, 180) (SAT: 0, 255) (VAL: 0, 255)
-        self.GREEN = [[57, 51, 0], [77, 255, 255]]
-        self.RED = [[-10, 120, 0], [10, 255, 255]]
+        # self.GREEN = [[57, 51, 0], [77, 255, 255]]
+        # self.RED = [[-10, 120, 0], [10, 255, 255]]
+
+        self.GREEN = [[57, 153, 51], [77, 255, 255]]
+        self.RED = [[-10, 194, 0], [10, 255, 255]]
 
         # Constants
         self.LOWER = 0
@@ -19,7 +22,6 @@ class Detect:
         self.HUE = 0
         self.SAT = 1
         self.VAL = 2
-        
 
     # Convert BGR image to HSV
     def BGRtoHSV(self, img):
@@ -171,14 +173,20 @@ class Detect:
         return distance
     
     # Find distance from robot to object based on the area of the detected zone
-    def distance_area(self, brick):
+    def distance_area_far(self, brick):
         contour, _ = cv2.findContours(brick, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if contour:
             A = cv2.contourArea(contour[0], oriented=False)
-
-            print(A)
-        return
+            output = 0.8506*np.exp(-2.033*10**-4*A)
+        return output
     
+    def distance_area_near(self, brick):
+        contour, _ = cv2.findContours(brick, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if contour:
+            A = cv2.contourArea(contour[0], oriented=False)
+            output = -1.845*10**-4*A+1.401
+        return output
+
     # Draws the center of the object on the frame
     def draw_center(self, edges):
         center = self.center(edges)
