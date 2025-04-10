@@ -16,6 +16,8 @@ class Detect:
         self.GREEN = [[57, 153, 51], [77, 255, 255]]
         self.RED = [[-10, 194, 0], [10, 255, 255]]
 
+        self.PAPER_ORANGE = [[5, 100, 200], [25, 255, 255]]
+
         # Constants
         self.LOWER = 0
         self.UPPER = 1

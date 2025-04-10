@@ -316,7 +316,7 @@ def test2_color():
 
 def test3_color():
     '''
-    Picks up blocks in a pre-programmed sequence, (red to green or green to red).
+    Picks up red block and goes to pad in a pre-programmed sequence
 
     Rotates in place until its target is found and then it places it away from 
     its inital spot.
@@ -333,7 +333,7 @@ def test3_color():
     errorY = 10
     xTol = 10 # Pixels
     yTol = 0.01 # Meters
-    rotTol = 20
+    rotTol = 30
 
     distList = []
     xList = []
@@ -352,6 +352,8 @@ def test3_color():
             continue
 
         mask = detector.detect_object(img, detector.RED)
+        if findPad:
+            mask = detector.detect_object(img, detector.PAPER_ORANGE)
         edges = detector.edges(mask)
         center = detector.center(edges)
 
@@ -379,7 +381,9 @@ def test3_color():
                 # This is the final average that it takes
                 pos_y = sum(distList)/5
 
-                print(f"Alignment: {isAligned}, Orbit: {isOrbiting}, Pad: {findPad}, Red: {findRed}, Error X: {errorX}, Error Y: {errorY}, Distance: {pos_y}")
+                isAligned = detector.orientation(brick)
+
+                print(f"Alignment: {isAligned}, Orbit: {isOrbiting}, Pad: {findPad}, Red: {findRed}, Distance: {pos_y}")
 
                 if abs(pos_x) < rotTol and not(pos_y != pos_y):
                     pos = [pos_x, 0, pos_y]
@@ -391,15 +395,121 @@ def test3_color():
                         if isAligned:
                             r1.isGrip = True
 
-                            if findGreen:
-                                findGreen = False
-                                pickGreen = True
-                                findRed = True
+                            if findRed:
+                                findRed = False
+                                pickRed = True
+                                findPad = True
 
-                            if not(r1.isGrip) and findRed:
+                            gripThread = threading.Thread(target=r1.move_to_fine2)
+                            gripThread.start()
+                        else:
+                            errorY, errorX = r1.move_to_coarse(pos, rot, True)
+                            isOrbiting = True
+                else:
+                    r1.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
+
+            else:
+                r1.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
+
+        # Display the captured frame
+        cv2.imshow('Camera', brick)
+
+        if cv2.waitKey(1) == ord('q'):
+            break
+
+def test3b_color():
+    '''
+    Picks up blocks in a pre-programmed sequence, (red to green or green to red).
+
+    Rotates in place until its target is found and then it places it away from 
+    its inital spot.
+
+    Switches from a coarse motion, P-loop based, to a fine motion, pre-programmed
+    state machine.
+    '''
+    # Detector Init
+    detector = Detect()
+    r1.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
+
+    timeStart = time.time()
+    errorX = 10
+    errorY = 10
+    yTolfine = 0.01 # Meters
+    xTol = 3 # Pixels
+    yTol = 0.05 # Meters
+    rotTol = 30
+
+    distList = []
+    xList = []
+    isAligned = False
+    isOrbiting = False
+
+    findRed = True
+    pickRed = False
+    findGreen = False
+    pickGreen = False
+
+    while True:
+        try:
+            img = r1.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
+        except Empty:
+            time.sleep(0.001)
+            continue
+        
+        if findRed:
+            mask = detector.detect_object(img, detector.RED)
+        if findGreen:
+            mask = detector.detect_object(img, detector.GREEN)
+        edges = detector.edges(mask)
+        center = detector.center(edges)
+
+        brick = detector.isolate_brick(edges)
+
+        if not(r1.isGrip):
+            if center:
+                # Output tower center pixel
+                center_x, center_y = center
+                
+                pos_x = center_x-detector.FRAME_CENTER_X
+                # Get position on X and average it
+                xList.insert(0, pos_x)
+                if len(xList) > 5:
+                    xList.pop()
+
+                # This is the final average that it takes
+                pos_x = sum(xList)/5
+
+                pos_y = detector.distance_area_far(brick)
+                distList.insert(0,pos_y)
+                if len(distList) > 5:
+                    distList.pop()
+
+                # This is the final average that it takes
+                pos_y = sum(distList)/5
+
+                isAligned = detector.orientation(brick, 15)
+
+                print(f"Alignment: {isAligned}, Orbit: {isOrbiting}, Green: {findGreen}, Red: {findRed}, Distance: {pos_y}")
+
+                if abs(pos_x) < rotTol and not(pos_y != pos_y):
+                    pos = [pos_x, 0, pos_y]
+                    rot = [0, 0, 0]
+                    errorY, errorX = r1.move_to_coarse(pos, rot, False)
+                    isOrbiting = False
+
+                    if abs(errorX) <= xTol and abs(errorY) <= yTol:
+                        if abs(errorY) <= yTolfine and isAligned:
+                            r1.isGrip = True
+
+                            if findRed:
                                 findRed = False
                                 pickRed = True
                                 findGreen = True
+
+                            if pickGreen and findGreen:
+                                findGreen = False
+                                pickGreen = True
+                                findRed = True
 
                             gripThread = threading.Thread(target=r1.move_to_fine)
                             gripThread.start()
@@ -407,10 +517,10 @@ def test3_color():
                             errorY, errorX = r1.move_to_coarse(pos, rot, True)
                             isOrbiting = True
                 else:
-                    r1.ep_chassis.drive_speed(x=0, y=0, z=40, timeout = 0.05)
+                    r1.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
 
             else:
-                r1.ep_chassis.drive_speed(x=0, y=0, z=40, timeout = 0.05)
+                r1.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
 
         # Display the captured frame
         cv2.imshow('Camera', brick)
@@ -469,7 +579,7 @@ def areaTest():
             time.sleep(0.001)
             continue
 
-        mask = detector.detect_object(frame, detector.RED)
+        mask = detector.detect_object(frame, detector.PAPER_ORANGE)
         edges = detector.edges(mask)
 
         brick = detector.isolate_brick(edges)
@@ -488,9 +598,10 @@ if __name__ == "__main__":
     # Robot Init
     r1 = motion()
     r1.gripper_open()
+    r1.gripper_open()
 
     try:
-        test2_color()
+        test3b_color()
     except KeyboardInterrupt:
         pass
     except Exception as e:
