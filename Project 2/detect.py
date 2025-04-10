@@ -21,6 +21,7 @@ class Detect:
         self.VAL = 2
         
 
+### Isolating the Brick ###
     # Convert BGR image to HSV
     def BGRtoHSV(self, img):
         return cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -90,6 +91,8 @@ class Detect:
 
         return output_img
     
+
+### Getting the center of the brick ###
     # Given edges find the center of the object
     def center(self, edges):
         white_pixels = np.column_stack(np.where(edges == 255))
@@ -103,6 +106,24 @@ class Detect:
 
         return (cx, cy)
     
+        # Draws the center of the object on the frame
+    
+    def draw_center(self, edges):
+        center = self.center(edges)
+
+        if len(edges.shape) == 2 or edges.shape[2] == 1:
+            edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+        else:
+            edges_bgr = edges.copy()
+
+
+        if center is not None:
+            cv2.circle(edges_bgr, center, 5, (0, 0, 255), -1)
+
+        return edges_bgr
+    
+    
+### Getting distance to brick ###    
     # Given edges find the left and right sides of the object
     def sides(self, edges, center_x, angle_thresh=75):
         lines = cv2.HoughLinesP(edges, rho=1, theta=np.pi / 180,
@@ -178,21 +199,33 @@ class Detect:
 
             print(A)
         return
-    
-    # Draws the center of the object on the frame
-    def draw_center(self, edges):
-        center = self.center(edges)
-
-        if len(edges.shape) == 2 or edges.shape[2] == 1:
-            edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
-        else:
-            edges_bgr = edges.copy()
 
 
-        if center is not None:
-            cv2.circle(edges_bgr, center, 5, (0, 0, 255), -1)
+### Getting orientation of the brick relative to the robot ###
+    def orientation(self, img, left_thresh=15, up_down_window=2):
+        # Get coordinates of all pixels with grayscale > 100
+        bright_pixels = np.column_stack(np.where(img > 100))
 
-        return edges_bgr
+        if bright_pixels.size == 0:
+            return False
+
+        # Find the pixel closest to the bottom
+        bottommost_pixel = bright_pixels[np.argmax(bright_pixels[:, 0])]
+        y, x = bottommost_pixel[0], bottommost_pixel[1]
+
+        # Coordinates for a 1x3 strip 10 pixels to the left
+        x_target = max(x - left_thresh, 0)
+        y_start = max(y - up_down_window, 0)
+        y_end = min(y + up_down_window, img.shape[0] - 1)
+
+        # Extract the region
+        region = img[y_start:y_end + 1, x_target:x_target + 1]
+
+        # Check if any pixel in that region exceeds brightness threshold
+        has_bright_neighbor = np.any(region > 100)
+
+        return has_bright_neighbor
+
 
 
 
@@ -206,13 +239,13 @@ def main():
     while True:
         _, frame = cam.read()
 
-        object = detector.detect_object(frame, detector.RED)
+        object = detector.detect_object(frame, detector.GREEN)
 
         edges = detector.edges(object)
 
         brick = detector.isolate_brick(edges)
 
-        detector.distance_area(brick)
+        detector.orientation(brick)
 
         # Display the captured frame
         cv2.imshow('Camera', brick)
