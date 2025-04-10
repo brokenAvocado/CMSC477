@@ -158,6 +158,7 @@ def test1_color():
     r1.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
     errorX = 10
     errorY = 10
+    isAligned = True
 
     while True:
         try:
@@ -166,7 +167,7 @@ def test1_color():
             time.sleep(0.001)
             continue
 
-        mask = detector.detect_object(img, detector.GREEN)
+        mask = detector.detect_object(img, detector.RED)
         edges = detector.edges(mask)
         center = detector.center(edges)
         brick = detector.isolate_brick(edges)
@@ -174,17 +175,21 @@ def test1_color():
         if center:
             # Output tower center pixel
             center_x, center_y = center
-            vertical_lines = detector.sides(edges, center_x)
+            isAligned = detector.orientation(brick)
 
             pos_x = center_x-detector.FRAME_CENTER_X
             pos_y = detector.distance_area_far(brick)
 
-            print(f"Center X: {pos_x}, Distance: {pos_y}")
+            print(f"Alignment: {isAligned}, Center X: {pos_x}, Distance: {pos_y}")
             # print(detector.line_length(vertical_lines))
             
             pos = [pos_x, 0, pos_y]
             rot = [0, 0, 0]
-            errorX, errorY = r1.move_to_coarse(pos, rot)
+
+            if abs(errorX) <= 5 and abs(errorY) <= 0.1 and not(isAligned):
+                errorX, errorY = r1.move_to_coarse(pos, rot, True)
+            else:
+                errorX, errorY = r1.move_to_coarse(pos, rot, False)
 
         # Display the captured frame
         cv2.imshow('Camera', brick)
@@ -206,10 +211,13 @@ def test2_color():
     errorX = 10
     errorY = 10
     distList = []
+    xList = []
+    isAligned = False
+    isOrbiting = False
 
     # Tolerances
-    xTol = 5 # Pixels
-    yTol = 0.005 # Meters
+    xTol = 10 # Pixels
+    yTol = 0.01 # Meters
     rotTol = 30
 
     r1.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
@@ -236,7 +244,14 @@ def test2_color():
                 # Output tower center pixel
                 center_x, center_y = center
                 
+                # Get position on X and average it
                 pos_x = center_x-detector.FRAME_CENTER_X
+                xList.insert(0, pos_x)
+                if len(xList) > 5:
+                    xList.pop()
+
+                # This is the final average that it takes
+                pos_x = sum(xList)/5
 
                 # Distance using Lines
                 # vertical_lines = detector.sides(edges, center_x)
@@ -247,28 +262,41 @@ def test2_color():
                 # pos_y = detector.distance_lines(detector.line_length(vertical_lines))
 
                 # Area Detection Code
-                if pos_y > 0:
-                    pos_y = detector.distance_area_far(brick)
-                    distList.insert(0,pos_y)
-                    if len(distList) > 5:
-                        distList.pop()
+                # if pos_y > 0:
+                
+                # Averages the Distance Values
+                pos_y = detector.distance_area_far(brick)
+                distList.insert(0,pos_y)
+                if len(distList) > 5:
+                    distList.pop()
 
-                    pos_y = sum(distList)/5
+                # This is the final average that it takes
+                pos_y = sum(distList)/5
+
+                isAligned = detector.orientation(brick)
+
                 # else:
                 #     pos_y = detector.distance_area_near(brick)
 
-                print(f"Gripping: {r1.isGrip}, Center X: {pos_x}, Distance: {pos_y}")
+                print(f"Alignment: {isAligned}, Orbit: {isOrbiting}, Center X: {pos_x}, Distance: {pos_y}")
                 # print(detector.line_length(vertical_lines))
 
                 if abs(pos_x) < rotTol:
                     pos = [pos_x, 0, pos_y]
                     rot = [0, 0, 0]
-                    errorY, errorX = r1.move_to_coarse(pos, rot)
+                    
+                    errorY, errorX = r1.move_to_coarse(pos, rot, False)
+                    isOrbiting = False
 
                     if abs(errorX) <= xTol and abs(errorY) <= yTol:
-                        r1.isGrip = True
-                        gripThread = threading.Thread(target=r1.move_to_fine)
-                        gripThread.start()
+                        if isAligned:
+                            r1.isGrip = True
+                            gripThread = threading.Thread(target=r1.move_to_fine)
+                            gripThread.start()
+                        else:
+                            errorY, errorX = r1.move_to_coarse(pos, rot, True)
+                            isOrbiting = True
+
                 else:
                     r1.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
             else:
@@ -298,15 +326,6 @@ def test3_color():
     '''
     # Detector Init
     detector = Detect()
-
-    # # Green
-    detector.set_lower_mask(114, .6, .2)
-    detector.set_upper_mask(154, 1, 1)
-
-    # # Red Values
-    # detector.set_lower_mask(0, .760, 0)
-    # detector.set_upper_mask(21, 1, 1)
-
     r1.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
 
     timeStart = time.time()
@@ -316,10 +335,14 @@ def test3_color():
     yTol = 0.01 # Meters
     rotTol = 20
 
-    findGreen = True
-    pickGreen = False
-    findRed = False
+    distList = []
+    xList = []
+    isAligned = False
+    isOrbiting = False
+
+    findRed = True
     pickRed = False
+    findPad = False
 
     while True:
         try:
@@ -328,57 +351,61 @@ def test3_color():
             time.sleep(0.001)
             continue
 
-        edges = detector.edges(img)
-        center = detector.center(edges, 15)
-        edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+        mask = detector.detect_object(img, detector.RED)
+        edges = detector.edges(mask)
+        center = detector.center(edges)
+
+        brick = detector.isolate_brick(edges)
 
         if not(r1.isGrip):
-            if findGreen:
-                detector.set_lower_mask(114, .6, .2)
-                detector.set_upper_mask(154, 1, 1)
-
-            if findRed:
-                detector.set_lower_mask(0, .760, 0)
-                detector.set_upper_mask(21, 1, 1)
-
             if center:
                 # Output tower center pixel
                 center_x, center_y = center
-                vertical_lines = detector.sides(edges, center_x)
-
-                # Draw on color image
-                edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
-                for x1, y1, x2, y2 in vertical_lines:
-                    cv2.line(edges_bgr, (x1, y1), (x2, y2), (0, 255, 0), 2)  # Green
-                cv2.circle(edges_bgr, center, 10, (0, 0, 255), -1)  # Red dot
-
-                cv2.imshow('Camera', edges_bgr)
-
+                
                 pos_x = center_x-detector.FRAME_CENTER_X
-                pos_y = detector.distance(detector.line_length(vertical_lines))
+                # Get position on X and average it
+                xList.insert(0, pos_x)
+                if len(xList) > 5:
+                    xList.pop()
 
-                print(f"Lost: {r1.isLost}, Green: {findGreen}, Red: {findRed}, Error X: {errorX}, Error Y: {errorY}, Distance: {pos_y}")
+                # This is the final average that it takes
+                pos_x = sum(xList)/5
+
+                pos_y = detector.distance_area_far(brick)
+                distList.insert(0,pos_y)
+                if len(distList) > 5:
+                    distList.pop()
+
+                # This is the final average that it takes
+                pos_y = sum(distList)/5
+
+                print(f"Alignment: {isAligned}, Orbit: {isOrbiting}, Pad: {findPad}, Red: {findRed}, Error X: {errorX}, Error Y: {errorY}, Distance: {pos_y}")
 
                 if abs(pos_x) < rotTol and not(pos_y != pos_y):
                     pos = [pos_x, 0, pos_y]
                     rot = [0, 0, 0]
-                    errorY, errorX = r1.move_to_coarse(pos, rot)
+                    errorY, errorX = r1.move_to_coarse(pos, rot, False)
+                    isOrbiting = False
 
                     if abs(errorX) <= xTol and abs(errorY) <= yTol:
-                        r1.isGrip = True
+                        if isAligned:
+                            r1.isGrip = True
 
-                        if findGreen:
-                            findGreen = False
-                            pickGreen = True
-                            findRed = True
+                            if findGreen:
+                                findGreen = False
+                                pickGreen = True
+                                findRed = True
 
-                        if not(r1.isGrip) and findRed:
-                            findRed = False
-                            pickRed = True
-                            findGreen = True
+                            if not(r1.isGrip) and findRed:
+                                findRed = False
+                                pickRed = True
+                                findGreen = True
 
-                        gripThread = threading.Thread(target=r1.move_to_fine)
-                        gripThread.start()
+                            gripThread = threading.Thread(target=r1.move_to_fine)
+                            gripThread.start()
+                        else:
+                            errorY, errorX = r1.move_to_coarse(pos, rot, True)
+                            isOrbiting = True
                 else:
                     r1.ep_chassis.drive_speed(x=0, y=0, z=40, timeout = 0.05)
 
@@ -386,7 +413,7 @@ def test3_color():
                 r1.ep_chassis.drive_speed(x=0, y=0, z=40, timeout = 0.05)
 
         # Display the captured frame
-        cv2.imshow('Camera', edges_bgr)
+        cv2.imshow('Camera', brick)
 
         if cv2.waitKey(1) == ord('q'):
             break
