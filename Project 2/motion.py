@@ -68,7 +68,7 @@ class motion:
         self.ep_camera = self.ep_robot.camera
 
         # State Booleans
-        self.isLost = False
+        self.isLost = True
         self.isGrip = False
 
     def gripper_close(self, power=100):
@@ -103,11 +103,15 @@ class motion:
         time.sleep(1)
         self.gripper_close()
         time.sleep(1)
+        self.gripper_close()
+        time.sleep(1)
         self.arm_raise()
 
     # lower release raise
     def lrr(self):
         self.arm_lower()
+        time.sleep(1)
+        self.gripper_open()
         time.sleep(1)
         self.gripper_open()
         time.sleep(1)

@@ -218,11 +218,14 @@ def test2_color():
     detector.set_lower_mask(0, .760, 0)
     detector.set_upper_mask(21, 1, 1)
 
-    r1.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
+    timeStart = time.time()
     errorX = 10
     errorY = 10
     xTol = 10 # Pixels
-    yTol = 0.01 # Meters
+    yTol = 0.3 # Meters
+    rotTol = 20
+
+    r1.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
 
     while True:
         try:
@@ -230,15 +233,14 @@ def test2_color():
         except Empty:
             time.sleep(0.001)
             continue
-
-        edges = detector.edges(img)
+        
+        masked = detector.mask_image_pls(img)
+        edges = detector.edges(masked)
         center = detector.center(edges, 15)
         edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
-
+                
         if not(r1.isGrip):
             if center:
-                r1.isLost = False
-
                 # Output tower center pixel
                 center_x, center_y = center
                 vertical_lines = detector.sides(edges, center_x)
@@ -250,29 +252,32 @@ def test2_color():
                 cv2.circle(edges_bgr, center, 10, (0, 0, 255), -1)  # Red dot
 
                 cv2.imshow('Camera', edges_bgr)
-
+                
                 pos_x = center_x-detector.FRAME_CENTER_X
                 pos_y = detector.distance(detector.line_length(vertical_lines))
 
                 print(f"Center X: {pos_x}, Distance: {pos_y}")
                 # print(detector.line_length(vertical_lines))
-                
-                pos = [pos_x, 0, pos_y]
-                rot = [0, 0, 0]
-                errorX, errorY = r1.move_to_coarse(pos, rot)
 
-                if abs(errorX) <= xTol and abs(errorY) <= yTol:
-                    r1.isGrip = True
-                    gripThread = threading.Thread(target=r1.move_to_fine)
-                    gripThread.start()
-            else:
-                if not(r1.isLost):
-                    timeStart = time.time()
-                    r1.isLost = False
-                if time.time()-timeStart < 18:
-                    r1.ep_chassis.drive_speed(x=0, y=0, z=40, timeout = 0.05)
+                if abs(pos_x) < rotTol:
+                    pos = [pos_x, 0, pos_y]
+                    rot = [0, 0, 0]
+                    errorX, errorY = r1.move_to_coarse(pos, rot)
+
+                    if abs(errorX) <= xTol and abs(errorY) <= yTol:
+                        r1.isGrip = True
+                        gripThread = threading.Thread(target=r1.move_to_fine)
+                        gripThread.start()
                 else:
-                    raise Exception("Timeout: no tags found")
+                    r1.ep_chassis.drive_speed(x=0, y=0, z=40, timeout = 0.05)
+            else:
+                # if not(r1.isLost):
+                #     timeStart = time.time()
+                #     r1.isLost = True
+                # if time.time()-timeStart < 18:
+                r1.ep_chassis.drive_speed(x=0, y=0, z=40, timeout = 0.05)
+                # else:
+                #     raise Exception("Timeout: no blocks found")
 
         # Display the captured frame
         cv2.imshow('Camera', edges_bgr)
@@ -302,10 +307,13 @@ def test3_color():
     # detector.set_upper_mask(21, 1, 1)
 
     r1.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
+
+    timeStart = time.time()
     errorX = 10
     errorY = 10
     xTol = 10 # Pixels
     yTol = 0.01 # Meters
+    rotTol = 20
 
     findGreen = True
     pickGreen = False
@@ -318,8 +326,9 @@ def test3_color():
         except Empty:
             time.sleep(0.001)
             continue
-
-        edges = detector.edges(img)
+        
+        masked = detector.mask_image_pls(img)
+        edges = detector.edges(masked)
         center = detector.center(edges, 15)
         edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
 
@@ -333,8 +342,6 @@ def test3_color():
                 detector.set_upper_mask(21, 1, 1)
 
             if center:
-                r1.isLost = False
-
                 # Output tower center pixel
                 center_x, center_y = center
                 vertical_lines = detector.sides(edges, center_x)
@@ -350,36 +357,33 @@ def test3_color():
                 pos_x = center_x-detector.FRAME_CENTER_X
                 pos_y = detector.distance(detector.line_length(vertical_lines))
 
-                print(f"Green: {findGreen}, Red: {findRed}, Center X: {pos_x}, Distance: {pos_y}")
-                
-                pos = [pos_x, 0, pos_y]
-                rot = [0, 0, 0]
-                errorX, errorY = r1.move_to_coarse(pos, rot)
+                print(f"Lost: {r1.isLost}, Green: {findGreen}, Red: {findRed}, Error X: {errorX}, Error Y: {errorY}, Distance: {pos_y}")
 
-                if abs(errorX) <= xTol and abs(errorY) <= yTol:
-                    r1.isGrip = True
+                if abs(pos_x) < rotTol and not(pos_y != pos_y):
+                    pos = [pos_x, 0, pos_y]
+                    rot = [0, 0, 0]
+                    errorY, errorX = r1.move_to_coarse(pos, rot)
 
-                    if findGreen:
-                        findGreen = False
-                        pickGreen = True
-                        findRed = True
+                    if abs(errorX) <= xTol and abs(errorY) <= yTol:
+                        r1.isGrip = True
 
-                    if not(r1.isGrip) and findRed:
-                        findRed = False
-                        pickRed = True
-                        findGreen = True
+                        if findGreen:
+                            findGreen = False
+                            pickGreen = True
+                            findRed = True
 
-                    gripThread = threading.Thread(target=r1.move_to_fine)
-                    gripThread.start()
-            else:
-                if not(r1.isLost):
-                    timeStart = time.time()
-                    r1.isLost = True
+                        if not(r1.isGrip) and findRed:
+                            findRed = False
+                            pickRed = True
+                            findGreen = True
 
-                if time.time()-timeStart < 18:
-                    r1.ep_chassis.drive_speed(x=0, y=0, z=40, timeout = 0.05)
+                        gripThread = threading.Thread(target=r1.move_to_fine)
+                        gripThread.start()
                 else:
-                    raise Exception("Timeout: no tags found")
+                    r1.ep_chassis.drive_speed(x=0, y=0, z=40, timeout = 0.05)
+
+            else:
+                r1.ep_chassis.drive_speed(x=0, y=0, z=40, timeout = 0.05)
 
         # Display the captured frame
         cv2.imshow('Camera', edges_bgr)
@@ -392,6 +396,8 @@ def detectTest():
     detector.set_lower_mask(114, .6, .2)
     detector.set_upper_mask(154, 1, 1)
 
+    r1.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
+
     while True:
         try:
             frame = r1.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
@@ -399,13 +405,9 @@ def detectTest():
             time.sleep(0.001)
             continue
 
-        edges = detector.edges(frame)
-        
-        # Frame Pixel Numbers Test
-        # height, width, _ = frame.shape
-        # print(f"Img Height: {height}, Img Width: {width}")
-
-        center = detector.center(edges)
+        masked = detector.mask_image_pls(frame)
+        edges = detector.edges(masked)
+        center = detector.center(edges, 15)
         edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
 
         if center:
@@ -418,7 +420,7 @@ def detectTest():
                 cv2.line(edges_bgr, (x1, y1), (x2, y2), (0, 255, 0), 2)  # Green
             cv2.circle(edges_bgr, center, 10, (0, 0, 255), -1)  # Red dot
 
-            cv2.imshow('Camera', edges_bgr)
+            # cv2.imshow('Camera', edges_bgr)
             print(f"Distance: {detector.distance(detector.line_length(vertical_lines))}")
             # print(detector.line_length(vertical_lines))
 
