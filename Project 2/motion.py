@@ -135,21 +135,12 @@ class motion:
     def scan(self):
         self.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
 
-    def move_to_coarse(self, TPose, Rpose, isOrbiting = False):
+    def move_to_coarse(self, TPose, isOrbiting = False, Px = 0.6, Py = 0.005, offsetX = 0.31, offsetY = 0):
         # AprilTag Parameters
-        # Px = 2
-        # Py = Px
-        # Pz = 300
-        # offsetX = 0.6
-        # offsetY = 0
+        # Px = 2, Py = Px, Pz = 300, offsetX = 0.6, offsetY = 0
 
-        # Color Masking Parameters
-        Px = 0.6
-        Py = 0.005
-        Pz = 300
-        offsetX = 0.31
-        offsetY = 0
-        feedY = 0
+        # In robot: x = forward/back, y = left/right
+        # In cmaera: x = left/right, y = forward/back
 
         if isOrbiting:
             velz = 30
@@ -158,14 +149,11 @@ class motion:
             velz = 0
             feedY = 0
 
-        errorX = TPose[2]-offsetX
+        errorX = TPose[1]-offsetX
         errorY = TPose[0]-offsetY
 
         velx = Px*(errorX)
-        vely = Py*(errorY) 
-
-        if not TPose[2]:
-            velx = 0
+        vely = Py*(errorY)
 
         self.ep_chassis.drive_speed(x=velx, y=vely, z=velz, timeout = 0.02)
         return errorX, errorY

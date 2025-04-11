@@ -14,182 +14,106 @@ from motion import AprilTagDetector
 from detect import Detect
 import threading
 
-def test1():
+# Perception Functions
+
+def updateImage(detector_class, img):
     '''
-    This is just project 0 in this project.
+    Used to update the images from the detector with masks and edges
+    Returns the masked brick object
+    '''
+    mask = detector_class.detect_object(img, detector_class.RED)
+    edges = detector_class.edges(mask)
+    center = detector_class.center(edges)
+    brick = detector_class.isolate_brick(edges)
+
+    return brick, center
+
+def updateDistances(detector_class, img, center_obj):
+    '''
+    Gets the distance of block from centroid 
+    Returns the positions (x = pixels, y = meters)
+    '''
+    # Get the pixel that the brick centroid is
+    center_x, center_y = center_obj
+    pos_x = center_x-detector_class.FRAME_CENTER_X
+    # Get distance to brick
+    pos_y = detector_class.distance_area_far(img)
+
+    return (pos_x, pos_y)
+
+# System Functions:
+
+def shutdown(robot_class):
+    '''
+    Sequence for stopping the robot 
+    '''
+    robot_class.ep_arm.unsub_position()
+    print('Waiting for robomaster shutdown')
+    robot_class.ep_camera.stop_video_stream()
+    robot_class.ep_robot.close()
+
+def initTest(robot_class):
+    '''
+    Initialize our required class for detection and variables for detection and movement
     '''
 
-    # AprilTag Init
-    apriltag = AprilTagDetector()
-
-    r1.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
-    errorX = 10
-    errorY = 10
-
-    while True:
-        try:
-            img = r1.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
-        except Empty:
-            time.sleep(0.001)
-            continue
-
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        gray.astype(np.uint8)
-
-        tags = apriltag.find_tags(gray)
-        if len(tags) > 0:
-            tag = tags[0]
-            pos, rot = apriltag.get_pose_apriltag_in_camera_frame(tag)
-            errorX, errorY = r1.move_to_coarse(pos, rot)
-
-        apriltag.draw_detections(img, tags)
-        cv2.imshow("img", img)
-
-        if cv2.waitKey(1) == ord('q'):
-            break
-
-def test2():
-    '''
-    This is project 0 motion with an added search tags feature (rotates until tag found).
-    '''
-    # AprilTag Init
-    apriltag = AprilTagDetector()
-
-    r1.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
-    errorX = 10
-    errorY = 10
-    xTol = 0.02
-    yTol = xTol
-
-    while True:
-        try:
-            img = r1.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
-        except Empty:
-            time.sleep(0.001)
-            continue
-
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        gray.astype(np.uint8)
-
-        tags = apriltag.find_tags(gray)
-        if not(r1.isGrip):
-            if len(tags) > 0:
-                r1.isLost = False
-                tag = tags[0]
-                pos, rot = apriltag.get_pose_apriltag_in_camera_frame(tag)
-                errorX, errorY = r1.move_to_coarse(pos, rot)
-                if abs(errorX) <= xTol and abs(errorY) <= yTol:
-                    r1.isGrip = True
-                    gripThread = threading.Thread(target=r1.move_to_fine)
-                    gripThread.start()
-            else:
-                if not(r1.isLost):
-                    timeStart = time.time()
-                    r1.isLost = False
-                if time.time()-timeStart < 18:
-                    r1.ep_chassis.drive_speed(x=0, y=0, z=40, timeout = 0.05)
-                else:
-                    raise Exception("Timeout: no tags found")
-
-        apriltag.draw_detections(img, tags)
-        cv2.imshow("img", img)
-
-        if cv2.waitKey(1) == ord('q'):
-            break
-
-def test3():
-    # AprilTag Init
-    apriltag = AprilTagDetector()
-
-    init = False
-    objects = []
-    errorX = 10
-    errorY = 10
-
-    startTime = time.time()
-    r1.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
-
-
-    while True:
-        try:
-            img = r1.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
-        except Empty:
-            time.sleep(0.001)
-            continue
-
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        gray.astype(np.uint8)
-
-        tags = apriltag.find_tags(gray)
-
-        if (time.time()-startTime <= 12):
-            r1.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
-            for tag in tags:
-                if not(tag.tag_id in objects): 
-                    objects.append(tag)
-        else:
-            target = objects[0]
-            for tag in tags:
-                if target == tag.tag_id:
-                    pos, rot = apriltag.get_pose_apriltag_in_camera_frame(target)
-                    if errorX > 0.03 and errorY > 0.03:
-                        errorX, errorY = r1.move_to_coarse(pos, rot)
-                    else:
-                        r1.move_to_fine()
-                        r1.lgr()
-                        time.sleep(1)
-                        r1.move_away()
-                else:
-                    r1.ep_chassis.drive_speed(x=0, y=0, z=40, timeout = 0.05)
-
-        apriltag.draw_detections(img, tags)
-        cv2.imshow("img", img)
-
-        if cv2.waitKey(1) == ord('q'):
-            break
-
-def test1_color():
-    '''
-    This is just project 0 in this project.
-    '''
     # Detector Init
-    detector = Detect()
+    detector_class = Detect()
+    robot_class.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
 
-    r1.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
-    errorX = 10
+    # Initialize our variables
+    errorX = 10 # Just so we don't trigger the conditional early, set arbitrarily to 10
     errorY = 10
     isAligned = True
 
+    return detector_class, errorX, errorY, isAligned
+
+# Movement Functions
+
+def canOrbit(x, y, alignment, x_tol=5, y_tol=0.05):
+    '''
+    Checks for the conditions to orbit around the object
+    '''
+    if abs(x) < x_tol and abs(y) < y_tol and alignment:
+        return True
+    else:
+        return False
+    
+def move_approach(robot_class, detector_class, brickMask, center_obj, errorX, errorY):
+    pos = updateDistances(detector_class, brickMask, center_obj)
+    isAligned = detector_class.orientation_avg(brickMask)
+
+    # Telemetry from Robot
+    print(f"Alignment: {isAligned}, Center X: {pos[0]}, Distance: {pos[1]}")
+    
+    # Main Movement Logic
+    if canOrbit(errorX, errorY, isAligned):
+        errorX, errorY = robot_class.move_to_coarse(pos, True)
+    else:
+        errorX, errorY = robot_class.move_to_coarse(pos, False)
+    
+    return errorX, errorY
+    
+# Test Functions
+
+def test1_color(robot_class):
+    '''
+    This is just project 0 in this project. Except it chases a brick
+    '''
+
+    detector, errorX, errorY, isAligned = initTest(robot_class)
+
     while True:
         try:
-            img = r1.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
+            img = robot_class.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
         except Empty:
             time.sleep(0.001)
             continue
 
-        mask = detector.detect_object(img, detector.RED)
-        edges = detector.edges(mask)
-        center = detector.center(edges)
-        brick = detector.isolate_brick(edges)
+        brick, center = updateImage(detector, img)
 
         if center:
-            # Output tower center pixel
-            center_x, center_y = center
-            isAligned = detector.orientation(brick)
-
-            pos_x = center_x-detector.FRAME_CENTER_X
-            pos_y = detector.distance_area_far(brick)
-
-            print(f"Alignment: {isAligned}, Center X: {pos_x}, Distance: {pos_y}")
-            # print(detector.line_length(vertical_lines))
-            
-            pos = [pos_x, 0, pos_y]
-            rot = [0, 0, 0]
-
-            if abs(errorX) <= 5 and abs(errorY) <= 0.1 and not(isAligned):
-                errorX, errorY = r1.move_to_coarse(pos, rot, True)
-            else:
-                errorX, errorY = r1.move_to_coarse(pos, rot, False)
+            errorX, errorY = move_approach(robot_class, detector, brick, center, errorX, errorY)
 
         # Display the captured frame
         cv2.imshow('Camera', brick)
@@ -197,7 +121,7 @@ def test1_color():
         if cv2.waitKey(1) == ord('q'):
             break
 
-def test2_color():
+def test2_color(robot_class):
     '''
     Rotates in place until a block is found (with the matching color mask)
     Uses a P control loop to approach the block, uses a pre-programmed 
@@ -220,11 +144,11 @@ def test2_color():
     yTol = 0.01 # Meters
     rotTol = 30
 
-    r1.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
+    robot_class.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
 
     while True:
         try:
-            img = r1.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
+            img = robot_class.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
         except Empty:
             time.sleep(0.001)
             continue
@@ -239,7 +163,7 @@ def test2_color():
         # This is line based measuring
         # edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
                 
-        if not(r1.isGrip):
+        if not(robot_class.isGrip):
             if center:
                 # Output tower center pixel
                 center_x, center_y = center
@@ -285,26 +209,26 @@ def test2_color():
                     pos = [pos_x, 0, pos_y]
                     rot = [0, 0, 0]
                     
-                    errorY, errorX = r1.move_to_coarse(pos, rot, False)
+                    errorY, errorX = robot_class.move_to_coarse(pos, rot, False)
                     isOrbiting = False
 
                     if abs(errorX) <= xTol and abs(errorY) <= yTol:
                         if isAligned:
-                            r1.isGrip = True
-                            gripThread = threading.Thread(target=r1.move_to_fine)
+                            robot_class.isGrip = True
+                            gripThread = threading.Thread(target=robot_class.move_to_fine)
                             gripThread.start()
                         else:
-                            errorY, errorX = r1.move_to_coarse(pos, rot, True)
+                            errorY, errorX = robot_class.move_to_coarse(pos, rot, True)
                             isOrbiting = True
 
                 else:
-                    r1.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
+                    robot_class.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
             else:
-                # if not(r1.isLost):
+                # if not(robot_class.isLost):
                 #     timeStart = time.time()
-                #     r1.isLost = True
+                #     robot_class.isLost = True
                 # if time.time()-timeStart < 18:
-                r1.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
+                robot_class.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
                 # else:
                 #     raise Exception("Timeout: no blocks found")
 
@@ -314,7 +238,7 @@ def test2_color():
         if cv2.waitKey(1) == ord('q'):
             break
 
-def test3_color():
+def test3_color(tobot_class):
     '''
     Picks up red block and goes to pad in a pre-programmed sequence
 
@@ -326,7 +250,7 @@ def test3_color():
     '''
     # Detector Init
     detector = Detect()
-    r1.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
+    robot_class.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
 
     timeStart = time.time()
     errorX = 10
@@ -346,7 +270,7 @@ def test3_color():
 
     while True:
         try:
-            img = r1.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
+            img = robot_class.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
         except Empty:
             time.sleep(0.001)
             continue
@@ -359,7 +283,7 @@ def test3_color():
 
         brick = detector.isolate_brick(edges)
 
-        if not(r1.isGrip):
+        if not(robot_class.isGrip):
             if center:
                 # Output tower center pixel
                 center_x, center_y = center
@@ -388,28 +312,28 @@ def test3_color():
                 if abs(pos_x) < rotTol and not(pos_y != pos_y):
                     pos = [pos_x, 0, pos_y]
                     rot = [0, 0, 0]
-                    errorY, errorX = r1.move_to_coarse(pos, rot, False)
+                    errorY, errorX = robot_class.move_to_coarse(pos, rot, False)
                     isOrbiting = False
 
                     if abs(errorX) <= xTol and abs(errorY) <= yTol:
                         if isAligned:
-                            r1.isGrip = True
+                            robot_class.isGrip = True
 
                             if findRed:
                                 findRed = False
                                 pickRed = True
                                 findPad = True
 
-                            gripThread = threading.Thread(target=r1.move_to_fine2)
+                            gripThread = threading.Thread(target=robot_class.move_to_fine2)
                             gripThread.start()
                         else:
-                            errorY, errorX = r1.move_to_coarse(pos, rot, True)
+                            errorY, errorX = robot_class.move_to_coarse(pos, rot, True)
                             isOrbiting = True
                 else:
-                    r1.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
+                    robot_class.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
 
             else:
-                r1.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
+                robot_class.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
 
         # Display the captured frame
         cv2.imshow('Camera', brick)
@@ -417,7 +341,7 @@ def test3_color():
         if cv2.waitKey(1) == ord('q'):
             break
 
-def test3b_color():
+def test3b_color(robot_class):
     '''
     Picks up blocks in a pre-programmed sequence, (red to green or green to red).
 
@@ -429,7 +353,7 @@ def test3b_color():
     '''
     # Detector Init
     detector = Detect()
-    r1.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
+    robot_class.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
 
     timeStart = time.time()
     errorX = 10
@@ -451,21 +375,20 @@ def test3b_color():
 
     while True:
         try:
-            img = r1.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
+            img = robot_class.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
         except Empty:
             time.sleep(0.001)
             continue
         
         if findRed:
-            mask = detector.detect_object(img, detector.RED)
+            mask = detector.detect_object(img, detector.BRICK_RED)
         if findGreen:
-            mask = detector.detect_object(img, detector.GREEN)
+            mask = detector.detect_object(img, detector.BRICK_GREEN)
         edges = detector.edges(mask)
         center = detector.center(edges)
-
         brick = detector.isolate_brick(edges)
 
-        if not(r1.isGrip):
+        if not(robot_class.isGrip):
             if center:
                 # Output tower center pixel
                 center_x, center_y = center
@@ -487,19 +410,19 @@ def test3b_color():
                 # This is the final average that it takes
                 pos_y = sum(distList)/5
 
-                isAligned = detector.orientation(brick, 15)
+                isAligned = detector.orientation_avg(brick)
 
                 print(f"Alignment: {isAligned}, Orbit: {isOrbiting}, Green: {findGreen}, Red: {findRed}, Distance: {pos_y}")
 
                 if abs(pos_x) < rotTol and not(pos_y != pos_y):
                     pos = [pos_x, 0, pos_y]
                     rot = [0, 0, 0]
-                    errorY, errorX = r1.move_to_coarse(pos, rot, False)
+                    errorY, errorX = robot_class.move_to_coarse(pos, rot, False)
                     isOrbiting = False
 
                     if abs(errorX) <= xTol and abs(errorY) <= yTol:
                         if abs(errorY) <= yTolfine and isAligned:
-                            r1.isGrip = True
+                            robot_class.isGrip = True
 
                             if findRed:
                                 findRed = False
@@ -511,103 +434,32 @@ def test3b_color():
                                 pickGreen = True
                                 findRed = True
 
-                            gripThread = threading.Thread(target=r1.move_to_fine)
+                            gripThread = threading.Thread(target=robot_class.move_to_fine)
                             gripThread.start()
                         else:
-                            errorY, errorX = r1.move_to_coarse(pos, rot, True)
+                            errorY, errorX = robot_class.move_to_coarse(pos, rot, True)
                             isOrbiting = True
                 else:
-                    r1.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
+                    robot_class.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
 
             else:
-                r1.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
+                robot_class.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
 
         # Display the captured frame
         cv2.imshow('Camera', brick)
 
-        if cv2.waitKey(1) == ord('q'):
-            break
-
-def detectTest():
-    detector = Detect()
-    detector.set_lower_mask(114, .6, .2)
-    detector.set_upper_mask(154, 1, 1)
-
-    r1.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
-
-    while True:
-        try:
-            frame = r1.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
-        except Empty:
-            time.sleep(0.001)
-            continue
-
-        masked = detector.mask_image_pls(frame)
-        edges = detector.edges(masked)
-        center = detector.center(edges, 15)
-        edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
-
-        if center:
-            center_x, center_y = center
-            vertical_lines = detector.sides(edges, center_x)
-
-            # Draw on color image
-            edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
-            for x1, y1, x2, y2 in vertical_lines:
-                cv2.line(edges_bgr, (x1, y1), (x2, y2), (0, 255, 0), 2)  # Green
-            cv2.circle(edges_bgr, center, 10, (0, 0, 255), -1)  # Red dot
-
-            # cv2.imshow('Camera', edges_bgr)
-            print(f"Distance: {detector.distance(detector.line_length(vertical_lines))}")
-            # print(detector.line_length(vertical_lines))
-
-        # Display the captured frame
-        cv2.imshow('Camera', edges_bgr)
-
-        # Press 'q' to exit the loop
-        if cv2.waitKey(1) == ord('q'):
-            break
-
-def areaTest():
-    detector = Detect()
-    r1.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
-
-    while True:
-        try:
-            frame = r1.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
-        except Empty:
-            time.sleep(0.001)
-            continue
-
-        mask = detector.detect_object(frame, detector.PAPER_ORANGE)
-        edges = detector.edges(mask)
-
-        brick = detector.isolate_brick(edges)
-        # distance = detector.distance_area(brick)
-
-        #print(f"Distance: {distance}")
-
-        # Display the captured frame
-        cv2.imshow('Camera', brick)
-
-        # Press 'q' to exit the loop
         if cv2.waitKey(1) == ord('q'):
             break
 
 if __name__ == "__main__":
     # Robot Init
     r1 = motion()
-    r1.gripper_open()
-    r1.gripper_open()
 
     try:
-        test3b_color()
+        test1_color(r1)
     except KeyboardInterrupt:
         pass
     except Exception as e:
         print(traceback.format_exc())
     finally:
-        r1.ep_arm.unsub_position()
-        print('Waiting for robomaster shutdown')
-        r1.ep_camera.stop_video_stream()
-        r1.ep_robot.close()
+        shutdown(r1)

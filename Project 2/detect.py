@@ -272,13 +272,10 @@ class Detect:
         has_bright_neighbor = l or r
 
         # Display debug image
-        cv2.imshow("Orientation Check", img_color)
+        # cv2.imshow("Orientation Check", img_color)
 
         return has_bright_neighbor
 
-
-
-    
     def orientation_avg(self, img, left_thresh=20, right_thresh=20, up_down_window=1):
         orient = self.orientation(img, left_thresh, right_thresh, up_down_window)
 
