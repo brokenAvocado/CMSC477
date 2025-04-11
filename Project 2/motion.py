@@ -9,6 +9,7 @@ import robomaster
 from robomaster import robot
 from robomaster import camera
 import threading
+import sys
 
 class AprilTagDetector: # Given
     def __init__(self, family="tag36h11", threads=2, marker_size_m=0.16):
@@ -134,7 +135,7 @@ class motion:
     def scan(self):
         self.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
 
-    def move_to_coarse(self, TPose, Rpose):
+    def move_to_coarse(self, TPose, Rpose, isOrbiting = False):
         # AprilTag Parameters
         # Px = 2
         # Py = Px
@@ -143,18 +144,25 @@ class motion:
         # offsetY = 0
 
         # Color Masking Parameters
-        Px = 1.3
+        Px = 0.6
         Py = 0.005
         Pz = 300
-        offsetX = 0.32
+        offsetX = 0.31
         offsetY = 0
+        feedY = 0
+
+        if isOrbiting:
+            velz = 30
+            feedY = 0.006
+        else:
+            velz = 0
+            feedY = 0
 
         errorX = TPose[2]-offsetX
         errorY = TPose[0]-offsetY
 
         velx = Px*(errorX)
-        vely = Py*(errorY)
-        velz = Pz*(Rpose[1])
+        vely = Py*(errorY) 
 
         if not TPose[2]:
             velx = 0
@@ -164,10 +172,33 @@ class motion:
 
     def move_to_fine(self):
         self.ep_chassis.drive_speed(x=0.1, y=0, z=0, timeout=10)
-        time.sleep(3.2)
+        time.sleep(3.1)
         self.ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.02)
         # self.ep_chassis.move(x=0.2, y=0, z=0, xy_speed = 1)
         self.lgr()
         time.sleep(1)
         self.move_away()
         self.isGrip = False
+        sys.exit()
+
+    def move_to_fine2(self):
+        self.ep_chassis.drive_speed(x=0.1, y=0, z=0, timeout=10)
+        time.sleep(2.9)
+        self.ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.02)
+        # self.ep_chassis.move(x=0.2, y=0, z=0, xy_speed = 1)
+        time.sleep(1)
+        self.gripper_close()
+        time.sleep(1)
+        self.gripper_close()
+        time.sleep(1)
+        self.ep_arm.move(x=0, y=10).wait_for_completed()
+        time.sleep(1)
+        self.isGrip = False
+        sys.exit()
+
+    def orbit(self):
+        # theta = 0
+        velz = -10
+        vely = 0.008
+
+        self.ep_chassis.drive_speed(x=0, y=vely, z=velz, timeout = 0.02)

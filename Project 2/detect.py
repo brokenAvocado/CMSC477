@@ -198,13 +198,28 @@ class Detect:
         return distance
     
     # Find distance from robot to object based on the area of the detected zone
-    def distance_area(self, brick):
+    def distance_area_far(self, brick):
         contour, _ = cv2.findContours(brick, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if contour:
             A = cv2.contourArea(contour[0], oriented=False)
+            output = 0.8506*np.exp(-2.033*10**-4*A)
+        return output
+    
+    def distance_area_near(self, brick):
+        contour, _ = cv2.findContours(brick, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if contour:
+            A = cv2.contourArea(contour[0], oriented=False)
+            output = -1.845*10**-4*A+1.401
+        return output
 
-            print(A)
-        return
+    # Draws the center of the object on the frame
+    def draw_center(self, edges):
+        center = self.center(edges)
+
+        if len(edges.shape) == 2 or edges.shape[2] == 1:
+            edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+        else:
+            edges_bgr = edges.copy()
 
 
 ### Getting orientation of the brick relative to the robot ###
