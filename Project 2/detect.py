@@ -10,8 +10,11 @@ class Detect:
 
         
         # Color presets (HUE: 0, 180) (SAT: 0, 255) (VAL: 0, 255)
-        self.GREEN = [[57, 51, 0], [77, 255, 255]]
-        self.RED = [[-10, 120, 0], [10, 255, 255]]
+        self.BRICK_GREEN = [[57, 51, 0], [77, 255, 255]]
+        self.BRICK_RED = [[-10, 120, 0], [10, 255, 255]]
+
+        self.PAPER_PINK = None
+        self.PAPER_ORANGE = [[5, 100, 200], [25, 255, 255]]
 
         # Constants
         self.LOWER = 0
@@ -19,7 +22,10 @@ class Detect:
         self.HUE = 0
         self.SAT = 1
         self.VAL = 2
-        
+
+        # Moving Average Content
+        self.AVG_ORIENTATION = [False] * 101
+        self.IDX_ORIENTATION = 0
 
 ### Isolating the Brick ###
     # Convert BGR image to HSV
@@ -202,29 +208,72 @@ class Detect:
 
 
 ### Getting orientation of the brick relative to the robot ###
-    def orientation(self, img, left_thresh=15, up_down_window=2):
-        # Get coordinates of all pixels with grayscale > 100
-        bright_pixels = np.column_stack(np.where(img > 100))
+    def orientation(self, img, left_thresh=15, right_thresh=15, up_down_window=2):
+        img_color = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+
+        # Get coordinates of all pixels with grayscale > 200
+        bright_pixels = np.column_stack(np.where(img > 200))
 
         if bright_pixels.size == 0:
             return False
 
-        # Find the pixel closest to the bottom
+        # Step 1: Find the pixel closest to the bottom (max Y)
         bottommost_pixel = bright_pixels[np.argmax(bright_pixels[:, 0])]
-        y, x = bottommost_pixel[0], bottommost_pixel[1]
+        y = bottommost_pixel[0] - 1
 
-        # Coordinates for a 1x3 strip 10 pixels to the left
-        x_target = max(x - left_thresh, 0)
+        # Step 2: Get all x-positions at that y-level that are also bright
+        bright_xs_at_y = np.where(img[y, :] > 200)[0]
+
+        if bright_xs_at_y.size == 0:
+            return False  # Safety check
+
+        # Step 3: Take the average x
+        x = int(np.mean(bright_xs_at_y))
+
+        height, width = img.shape[:2]
+
+        # Vertical range
         y_start = max(y - up_down_window, 0)
-        y_end = min(y + up_down_window, img.shape[0] - 1)
+        y_end = min(y + up_down_window, height - 1)
 
-        # Extract the region
-        region = img[y_start:y_end + 1, x_target:x_target + 1]
+        # Left region (1x3)
+        x_left = max(x - left_thresh, 0)
+        left_region = img[y_start:y_end + 1, x_left:x_left + 1]
 
-        # Check if any pixel in that region exceeds brightness threshold
-        has_bright_neighbor = np.any(region > 100)
+        # Right region (1x3)
+        x_right = min(x + right_thresh, width - 1)
+        right_region = img[y_start:y_end + 1, x_right:x_right + 1]
+
+        # Draw red pixels on left region
+        for yy in range(y_start, y_end + 1):
+            img_color[yy, x_left] = (0, 0, 255)  # Red
+
+        # Draw red pixels on right region
+        for yy in range(y_start, y_end + 1):
+            img_color[yy, x_right] = (0, 0, 255)  # Red
+
+        l = np.any(left_region > 200)
+        r = np.any(right_region > 200)
+        has_bright_neighbor = l or r
+
+        # Display debug image
+        cv2.imshow("Orientation Check", img_color)
 
         return has_bright_neighbor
+
+
+
+    
+    def orientation_avg(self, img, left_thresh=20, right_thresh=20, up_down_window=1):
+        orient = self.orientation(img, left_thresh, right_thresh, up_down_window)
+
+        self.AVG_ORIENTATION[self.IDX_ORIENTATION] = orient
+        self.IDX_ORIENTATION += 1
+        if self.IDX_ORIENTATION >= len(self.AVG_ORIENTATION):
+            self.IDX_ORIENTATION = 0
+
+        threshold = 2/3
+        return sum(self.AVG_ORIENTATION) >= threshold * len(self.AVG_ORIENTATION)
 
 
 
@@ -239,16 +288,18 @@ def main():
     while True:
         _, frame = cam.read()
 
-        object = detector.detect_object(frame, detector.GREEN)
+        object = detector.detect_object(frame, detector.BRICK_GREEN)
 
         edges = detector.edges(object)
 
         brick = detector.isolate_brick(edges)
 
-        detector.orientation(brick)
+        aligned = detector.orientation_avg(brick)
+
+        print(f'AVG: {aligned}')
 
         # Display the captured frame
-        cv2.imshow('Camera', brick)
+        #cv2.imshow('Camera', edges)
 
         # Press 'q' to exit the loop
         if cv2.waitKey(1) == ord('q'):
@@ -258,5 +309,5 @@ def main():
     cam.release()
     cv2.destroyAllWindows()
 
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()
