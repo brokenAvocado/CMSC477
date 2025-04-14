@@ -21,13 +21,14 @@ def updateImage(img, objType):
     Used to update the images from the detector with masks and edges
     Returns the masked brick object
     '''
-    mask = detector.detect_object(img, detector.BRICK_GREEN)
+    mask = detector.detect_object(img, objType)
     crop_mask = detector.crop_image(mask)
     edges = detector.edges(crop_mask)
-    center = detector.center(edges)
     brick = detector.isolate_brick(edges)
+    center = detector.center(brick)
+    brick_disp = detector.draw_center(brick)
 
-    return brick, center
+    return brick, center, brick_disp
 
 def updateDistances(img, center_obj):
     '''
@@ -68,7 +69,7 @@ def initVars():
 
 # Movement Functions
 
-def canOrbit(x, y, alignment, x_tol=5, y_tol=0.05):
+def canOrbit(x, y, alignment, x_tol=12, y_tol=0.05):
     '''
     Checks for the conditions to orbit around the object
     '''
@@ -76,28 +77,37 @@ def canOrbit(x, y, alignment, x_tol=5, y_tol=0.05):
         return True
     return False
     
-def canGrab(x, y, brickMask, x_tol=2, y_tol=0.005):
-
+def canGrab(x, y, brickMask, x_tol=10, y_tol=0.008, state = None):
     alignment = detector.orientation_avg(brickMask, 15, 15)
+
+    if state == 2 or state == 4:
+        x_tol = 20.0
+        y_tol = 0.1
+        alignment = True
+
     if abs(x) < x_tol and abs(y) < y_tol and (alignment):
         return True
     return False
     
-def move_approach(brickMask, center_obj, errorX, errorY, state = 0):
+def move_approach(brickMask, center_obj, errorX, errorY, state = None):
     pos = updateDistances(brickMask, center_obj)
     isAligned = detector.orientation_avg(brickMask, 15, 15)
     isOrbiting = canOrbit(errorX, errorY, isAligned)
 
-    # Telemetry from Robot
-    print(f"isAligned: {isAligned}, State: {state}, Center X: {pos[0]}, Distance: {pos[1]}")
+    if state == 2 or state == 4:
+        offset_dist = 0.6
+        ignoreOrbit = True
+    else:
+        offset_dist = 0.3
+        ignoreOrbit = False
 
     # Main Movement Logic
-    if isOrbiting:
-        errorY, errorX = robo.move_orbit(pos)
+    if isOrbiting and not(ignoreOrbit):
+        errorY, errorX = robo.move_orbit(pos, Px = 0.4, Py = 0.003)
     else:
-        errorY, errorX = robo.move_to_coarse(pos, False)
+        errorY, errorX = robo.move_to_coarse(pos, False, offsetX = offset_dist, Px = 0.4, Py = 0.003)
 
-    return errorX, errorY
+    return errorX, errorY, pos[0], pos[1], isAligned
 
 # def check_grab(brickMask, alignCount, alignMax = 10):
 #     go_grab = False
@@ -113,22 +123,23 @@ def move_approach(brickMask, center_obj, errorX, errorY, state = 0):
     
 def move_grab(state):
     robo.isGrip = True
-    ind = state.index(1)
+    ind = state
 
     if ind == 0:
-        gripThread = threading.Thread(target=robo.move_to_fine)
+        gripThread = threading.Thread(target=robo.move_block)
         gripThread.start()
     elif ind == 1:
-        gripThread = threading.Thread(target=robo.move_to_fine)
+        gripThread = threading.Thread(target=robo.move_to_block)
         gripThread.start()
     elif ind == 2:
-        gripThread = threading.Thread(target=robo.move_to_fine)
+        gripThread = threading.Thread(target=robo.move_to_pad)
         gripThread.start()
     elif ind == 3:
-        gripThread = threading.Thread(target=robo.move_to_fine)
+        gripThread = threading.Thread(target=robo.move_to_block)
+        print("is here")
         gripThread.start()
     elif ind == 4:
-        gripThread = threading.Thread(target=robo.move_to_fine)
+        gripThread = threading.Thread(target=robo.move_to_pad)
         gripThread.start()
 
 def search_block():
@@ -137,11 +148,11 @@ def search_block():
 def state_change(state):
     '''
     The state is constructed of the following tasks:
+    0 - Find Red
     1 - Find Green
-    2 - Find Red
-    3 - Find Pad
-    4 - Find Green 2
-    5 - Find Pad 2
+    2 - Find Pad
+    3 - Find Red 2
+    4 - Find Pad 2
     '''
 
     ind = state.index(1)
@@ -152,16 +163,16 @@ def state_change(state):
     return state
 
 def color_switch(state):
-    ind = state.index(1)
+    ind = state
 
     if ind == 0:
-        return detector.BRICK_GREEN
-    elif ind == 1:
         return detector.BRICK_RED
+    elif ind == 1:
+        return detector.BRICK_GREEN
     elif ind == 2:
         return detector.PAPER_ORANGE
     elif ind == 3:
-        return detector.BRICK_GREEN
+        return detector.BRICK_RED
     elif ind == 4:
         return detector.PAPER_PINK
     
@@ -211,6 +222,7 @@ def test2_color():
     robo.gripper_open()
     robo.gripper_open()
     errorX, errorY = initVars()
+    state = [1]
 
     while True:
         try:
@@ -225,7 +237,7 @@ def test2_color():
         if not(robo.isGrip):
             if blockFound(brick, center):
                 if canGrab(errorX, errorY, brick):
-                    move_grab()
+                    move_grab(state)
                 else:
                     errorX, errorY = move_approach(brick, center, errorX, errorY)
             else:
@@ -275,7 +287,7 @@ def test3_color():
             time.sleep(0.001)
             continue
 
-        mask = detector.detect_object(img, detector.RED)
+        mask = detector.detect_object(img, detector.BRICK_RED)
         if findPad:
             mask = detector.detect_object(img, detector.PAPER_ORANGE)
         edges = detector.edges(mask)
@@ -313,6 +325,7 @@ def test3_color():
                     pos = [pos_x, 0, pos_y]
                     rot = [0, 0, 0]
                     errorY, errorX = robo.move_to_coarse(pos, rot, False)
+                    print("here")
                     isOrbiting = False
 
                     if abs(errorX) <= xTol and abs(errorY) <= yTol:
@@ -352,10 +365,13 @@ def test3b_color():
     state machine.
     '''
     robo.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
-    robo.gripper_open()
-    robo.gripper_open()
+    # robo.gripper_open()
+    # robo.gripper_open()
     errorX, errorY = initVars()
-    state = [1,0,0,0,0]
+    state = 2
+    x = 0
+    y = 0
+    alignment = False
 
     while True:
         try:
@@ -365,23 +381,52 @@ def test3b_color():
             continue
 
         color = color_switch(state)
-        brick, center = updateImage(img, color)
+        brick, center, display = updateImage(img, color)
+
+        # print(color)
 
         # Top most conditional checks if the robot is still in thread (move_to_fine)
         if not(robo.isGrip):
             if blockFound(brick, center):
-                if canGrab(errorX, errorY, brick):
+                if canGrab(errorX, errorY, brick, state=state):
                     move_grab(state)
-                    state = state_change(state)
+                    state += 1
+                    errorX, errorY = initVars()
                 else:
-                    errorX, errorY = move_approach(brick, center, errorX, errorY, state)
+                    errorX, errorY, x, y, alignment = move_approach(brick, center, errorX, errorY, state)
             else:
                 search_block()
                 errorX, errorY = initVars()
 
+        # Telemetry from Robot
+        print(f"isAligned: {alignment}, State: {state}, Center X: {x}, Distance: {y}")
+
         # Display the captured frame
         cv2.imshow('Camera', brick)
 
+        if cv2.waitKey(1) == ord('q'):
+            break
+
+def detectTest():
+    color = detector.BRICK_RED
+    robo.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
+
+    while True:
+        try:
+            frame = robo.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
+        except Empty:
+            time.sleep(0.001)
+            continue
+
+        brick, center, display = updateImage(frame, color)
+
+        if center:
+            center_x, center_y = center
+            
+        # Display the captured frame
+        cv2.imshow('Camera', brick)
+
+        # Press 'q' to exit the loop
         if cv2.waitKey(1) == ord('q'):
             break
 
@@ -391,7 +436,7 @@ if __name__ == "__main__":
     detector = Detect()
 
     try:
-        test2_color()
+        test3b_color()
     except KeyboardInterrupt:
         pass
     except Exception as e:

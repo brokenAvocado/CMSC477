@@ -10,7 +10,9 @@ class Detect:
 
         
         # Color presets (HUE: 0, 180) (SAT: 0, 255) (VAL: 0, 255)
-        self.BRICK_GREEN = [[57, 51, 0], [77, 255, 255]]
+        # self.BRICK_GREEN = [[57, 51, 0], [77, 255, 255]]
+        self.BRICK_GREEN = [[50, 30, 0], [80, 255, 255]]
+
         self.BRICK_RED = [[-10, 120, 0], [10, 255, 255]]
 
         self.PAPER_PINK = None
@@ -116,7 +118,9 @@ class Detect:
         if white_pixels.size == 0:
             return None
 
-        cy, cx = np.mean(white_pixels, axis=0).astype(int)
+        cyx = np.mean(white_pixels, axis=0).astype(int)
+
+        cy, cx = cyx[0], cyx[1]
 
         self.object_center = (cx, cy)
 

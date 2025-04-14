@@ -89,10 +89,10 @@ class motion:
         self.ep_arm.move(x=-50, y=0).wait_for_completed()
 
     def arm_lower(self):
-        self.ep_arm.move(x=0, y=-50).wait_for_completed()
+        self.ep_arm.move(x=0, y=-20).wait_for_completed()
 
     def arm_raise(self):
-        self.ep_arm.move(x=0, y=50).wait_for_completed()
+        self.ep_arm.move(x=0, y=20).wait_for_completed()
 
     def arm_position_reader(self, sub_info):
         pos_x, pos_y = sub_info
@@ -117,6 +117,9 @@ class motion:
         self.gripper_open()
         time.sleep(1)
         # self.arm_raise()
+
+    def lg(self):
+        self.arm_lower()
 
     # move backwards -> rotate 90 -> drop block -> move backwards a little -> rotate -90
     def move_away(self):
@@ -151,7 +154,7 @@ class motion:
         self.ep_chassis.drive_speed(x=velx, y=vely, z=0, timeout = 0.02)
         return errorX, errorY
     
-    def move_orbit(self, TPose, isOrbiting = False, isReversed = False, Px = 0.6, Py = 0.005, Pz = 30, offsetX = 0.3, offsetY = 0, velz = 20):
+    def move_orbit(self, TPose, isOrbiting = False, isReversed = False, Px = 0.6, Py = 0.005, Pz = 10, offsetX = 0.3, offsetY = 0, velz = 20):
         # AprilTag Parameters
         # Px = 2, Py = Px, Pz = 300, offsetX = 0.6, offsetY = 0
 
@@ -168,7 +171,10 @@ class motion:
         self.ep_chassis.drive_speed(x=velx, y=vely, z=velz, timeout = 0.02)
         return errorX, errorY
 
-    def move_to_fine(self):
+    def move_block(self):
+        '''
+        For the initial Green block
+        '''
         self.ep_chassis.drive_speed(x=0.1, y=0, z=0, timeout=10)
         time.sleep(3.1)
         self.ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.02)
@@ -176,12 +182,16 @@ class motion:
         self.lgr()
         time.sleep(1)
         self.move_away()
+        time.sleep(1)
         self.isGrip = False
         sys.exit()
 
-    def move_to_fine2(self):
+    def move_to_block(self):
+        '''
+        For the second green and only red block
+        '''
         self.ep_chassis.drive_speed(x=0.1, y=0, z=0, timeout=10)
-        time.sleep(2.9)
+        time.sleep(3.1)
         self.ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.02)
         # self.ep_chassis.move(x=0.2, y=0, z=0, xy_speed = 1)
         time.sleep(1)
@@ -190,6 +200,20 @@ class motion:
         self.gripper_close()
         time.sleep(1)
         self.ep_arm.move(x=0, y=10).wait_for_completed()
+        time.sleep(1)
+        self.isGrip = False
+        sys.exit()
+
+    def move_to_pad(self):
+        '''
+        For placing block on pad
+        '''
+        self.ep_chassis.drive_speed(x=0.1, y=0, z=0, timeout=10)
+        time.sleep(7)
+        self.ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.02)
+        time.sleep(1)
+        # self.ep_chassis.move(x=0.2, y=0, z=0, xy_speed = 1)
+        self.lrr()
         time.sleep(1)
         self.isGrip = False
         sys.exit()
