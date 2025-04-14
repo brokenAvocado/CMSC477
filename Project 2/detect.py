@@ -52,6 +52,16 @@ class Detect:
             mask = cv2.bitwise_or(cv2.inRange(img, lower1, upper1), cv2.inRange(img, lower2, upper2))
 
         return mask
+    
+    def crop_image(self, img):
+        mask = np.zeros((img.shape[0], img.shape[1]), dtype="uint8")
+         
+        pts = np.array([[0, img.shape[0]], [img.shape[1], img.shape[0]], [img.shape[1], int(img.shape[0]/2)], [0, int(img.shape[0]/2)]], dtype=np.int32)
+        cv2.fillConvexPoly(mask, pts, 255)
+        
+        masked = cv2.bitwise_and(img, img, mask=mask)
+
+        return masked
 
     # Take a frame and apply color mask to find object
     def detect_object(self, frame, color):

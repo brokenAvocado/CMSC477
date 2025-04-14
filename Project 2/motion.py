@@ -135,25 +135,35 @@ class motion:
     def scan(self):
         self.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
 
-    def move_to_coarse(self, TPose, isOrbiting = False, Px = 0.6, Py = 0.005, offsetX = 0.31, offsetY = 0):
+    def move_to_coarse(self, TPose, isOrbiting = False, isReversed = False, Px = 0.6, Py = 0.005, offsetX = 0.3, offsetY = 0, velz = 0):
         # AprilTag Parameters
         # Px = 2, Py = Px, Pz = 300, offsetX = 0.6, offsetY = 0
 
         # In robot: x = forward/back, y = left/right
         # In cmaera: x = left/right, y = forward/back
 
-        if isOrbiting:
-            velz = 30
-            feedY = 0.006
-        else:
-            velz = 0
-            feedY = 0
-
         errorX = TPose[1]-offsetX
         errorY = TPose[0]-offsetY
 
         velx = Px*(errorX)
         vely = Py*(errorY)
+
+        self.ep_chassis.drive_speed(x=velx, y=vely, z=0, timeout = 0.02)
+        return errorX, errorY
+    
+    def move_orbit(self, TPose, isOrbiting = False, isReversed = False, Px = 0.6, Py = 0.005, Pz = 30, offsetX = 0.3, offsetY = 0, velz = 20):
+        # AprilTag Parameters
+        # Px = 2, Py = Px, Pz = 300, offsetX = 0.6, offsetY = 0
+
+        # In robot: x = forward/back, y = left/right
+        # In cmaera: x = left/right, y = forward/back
+
+        errorX = TPose[1]-offsetX
+        errorY = TPose[0]-offsetY
+
+        velx = Px*errorX
+        vely = Py*errorY
+        velz = -Pz*errorY+velz
 
         self.ep_chassis.drive_speed(x=velx, y=vely, z=velz, timeout = 0.02)
         return errorX, errorY
