@@ -134,6 +134,7 @@ class motion:
         time.sleep(1)
         self.ep_chassis.drive_speed(x=0, y=0, z=-90, timeout=5)
         time.sleep(2)
+        self.ep_chassis.drive_speed(x=0, y=0, z=0, timeout=5)
 
     def scan(self):
         self.ep_chassis.drive_speed(x=0, y=0, z=30, timeout = 0.05)
@@ -209,12 +210,14 @@ class motion:
         For placing block on pad
         '''
         self.ep_chassis.drive_speed(x=0.1, y=0, z=0, timeout=10)
-        time.sleep(7)
+        time.sleep(7.5)
         self.ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.02)
         time.sleep(1)
         # self.ep_chassis.move(x=0.2, y=0, z=0, xy_speed = 1)
         self.lrr()
         time.sleep(1)
+        self.ep_chassis.drive_speed(x=-0.3, y=0, z=0, timeout=5)
+        time.sleep(2)
         self.isGrip = False
         sys.exit()
 

@@ -8,6 +8,7 @@ import time
 import robomaster
 from robomaster import robot
 from robomaster import camera
+import os
 
 from motion import motion
 from motion import AprilTagDetector
@@ -67,6 +68,29 @@ def initVars():
 
     return errorX, errorY
 
+def open_new_file(filepath):
+    '''
+    Saves content to a new file, avoiding overwriting existing files.
+
+    Args:
+        filepath: The desired file path (including filename).
+        content: The content to write to the file.
+    '''
+    
+    _, ext = os.path.splitext(filepath)
+    count = 1
+    while os.path.exists(filepath):
+        filepath = f"data_{count}{ext}"
+        count += 1
+    
+    return filepath
+
+def save_data(file, content):
+    try:
+        file.write(content)
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
 # Movement Functions
 
 def canOrbit(x, y, alignment, x_tol=12, y_tol=0.05):
@@ -82,8 +106,8 @@ def canGrab(x, y, brickMask, x_tol=10, y_tol=0.008, state = None):
 
     if state == 2 or state == 4:
         x_tol = 20.0
-        y_tol = 0.1
-        alignment = True
+        y_tol = 0.008
+        # alignment = True
 
     if abs(x) < x_tol and abs(y) < y_tol and (alignment):
         return True
@@ -95,8 +119,8 @@ def move_approach(brickMask, center_obj, errorX, errorY, state = None):
     isOrbiting = canOrbit(errorX, errorY, isAligned)
 
     if state == 2 or state == 4:
-        offset_dist = 0.6
-        ignoreOrbit = True
+        offset_dist = 0.55
+        ignoreOrbit = False
     else:
         offset_dist = 0.3
         ignoreOrbit = False
@@ -136,7 +160,6 @@ def move_grab(state):
         gripThread.start()
     elif ind == 3:
         gripThread = threading.Thread(target=robo.move_to_block)
-        print("is here")
         gripThread.start()
     elif ind == 4:
         gripThread = threading.Thread(target=robo.move_to_pad)
@@ -174,9 +197,8 @@ def color_switch(state):
     elif ind == 3:
         return detector.BRICK_RED
     elif ind == 4:
-        return detector.PAPER_PINK
-    
-    return None
+        return detector.PAPER_PURPLE
+    return detector.PAPER_PURPLE
 
 # Test Functions
 
@@ -365,50 +387,54 @@ def test3b_color():
     state machine.
     '''
     robo.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
-    # robo.gripper_open()
-    # robo.gripper_open()
+    robo.gripper_open()
+    robo.gripper_open()
+    # robo.lgr()
     errorX, errorY = initVars()
-    state = 2
+    state = 0
     x = 0
     y = 0
     alignment = False
 
-    while True:
-        try:
-            img = robo.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
-        except Empty:
-            time.sleep(0.001)
-            continue
+    path = open_new_file("Project 2")
+    with open(path, 'w') as data:
+        while True:
+            try:
+                img = robo.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
+            except Empty:
+                time.sleep(0.001)
+                continue
 
-        color = color_switch(state)
-        brick, center, display = updateImage(img, color)
+            color = color_switch(state)
+            brick, center, display = updateImage(img, color)
 
-        # print(color)
+            # print(color)
 
-        # Top most conditional checks if the robot is still in thread (move_to_fine)
-        if not(robo.isGrip):
-            if blockFound(brick, center):
-                if canGrab(errorX, errorY, brick, state=state):
-                    move_grab(state)
-                    state += 1
-                    errorX, errorY = initVars()
+            # Top most conditional checks if the robot is still in thread (move_to_fine)
+            if not(robo.isGrip):
+                if blockFound(brick, center):
+                    if canGrab(errorX, errorY, brick, state=state):
+                        move_grab(state)
+                        state += 1
+                        errorX, errorY = initVars()
+                    else:
+                        errorX, errorY, x, y, alignment = move_approach(brick, center, errorX, errorY, state)
                 else:
-                    errorX, errorY, x, y, alignment = move_approach(brick, center, errorX, errorY, state)
-            else:
-                search_block()
-                errorX, errorY = initVars()
+                    search_block()
+                    errorX, errorY = initVars()
 
-        # Telemetry from Robot
-        print(f"isAligned: {alignment}, State: {state}, Center X: {x}, Distance: {y}")
+            # Telemetry from Robot
+            print(f"isAligned: {alignment}, State: {state}, Center X: {x}, Distance: {y}")
+            save_data(data, f"{x}, {y}\n")
 
-        # Display the captured frame
-        cv2.imshow('Camera', brick)
+            # Display the captured frame
+            cv2.imshow('Camera', brick)
 
-        if cv2.waitKey(1) == ord('q'):
-            break
+            if cv2.waitKey(1) == ord('q'):
+                break
 
 def detectTest():
-    color = detector.BRICK_RED
+    color = detector.PAPER_ORANGE
     robo.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
 
     while True:
@@ -418,13 +444,13 @@ def detectTest():
             time.sleep(0.001)
             continue
 
-        brick, center, display = updateImage(frame, color)
+        # brick, center, display = updateImage(frame, color)
+        # pos = updateDistances(brick, center)
 
-        if center:
-            center_x, center_y = center
+        # print(f"Distance, {pos[1]}")
             
         # Display the captured frame
-        cv2.imshow('Camera', brick)
+        cv2.imshow('Camera', frame)
 
         # Press 'q' to exit the loop
         if cv2.waitKey(1) == ord('q'):

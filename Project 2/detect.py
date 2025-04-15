@@ -11,12 +11,12 @@ class Detect:
         
         # Color presets (HUE: 0, 180) (SAT: 0, 255) (VAL: 0, 255)
         # self.BRICK_GREEN = [[57, 51, 0], [77, 255, 255]]
-        self.BRICK_GREEN = [[50, 30, 0], [80, 255, 255]]
-
+        self.BRICK_GREEN = [[59, 102, 54], [83, 255, 255]]
         self.BRICK_RED = [[-10, 120, 0], [10, 255, 255]]
 
-        self.PAPER_PURPLE = None[[123, 73, 125], [147, 255, 255]]
-        self.PAPER_ORANGE = [[5, 100, 200], [25, 255, 255]]
+        self.PAPER_PURPLE = [[123, 73, 125], [147, 255, 255]]
+        # self.PAPER_ORANGE = [[5, 100, 200], [25, 255, 255]]
+        self.PAPER_ORANGE = [[26, 158, 239], [31, 255, 255]]
 
         # Constants
         self.LOWER = 0
