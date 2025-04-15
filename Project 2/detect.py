@@ -15,7 +15,7 @@ class Detect:
 
         self.BRICK_RED = [[-10, 120, 0], [10, 255, 255]]
 
-        self.PAPER_PINK = None
+        self.PAPER_PURPLE = None[[123, 73, 125], [147, 255, 255]]
         self.PAPER_ORANGE = [[5, 100, 200], [25, 255, 255]]
 
         # Constants
