@@ -63,6 +63,8 @@ class DJI:
     def initPlot(self):
         self.xs = []
         self.ys = []
+        self.buffer_x = []
+        self.buffer_y = []
         self.start = []
         self.end = []
         
@@ -74,9 +76,12 @@ class DJI:
                 elif self.matrix[col][row] == '3':
                     self.end.append(row)
                     self.end.append(col)
-                elif self.matrix[col][row] != '0':
+                elif self.matrix[col][row] == '1':
                     self.xs.append(row)
                     self.ys.append(col)
+                elif self.matrix[col][row] == '4':
+                    self.buffer_x.append(row)
+                    self.buffer_y.append(col)
     
     def interp(self):
         self.interpx = np.arange(1, 31, 0.2)
@@ -88,6 +93,7 @@ class DJI:
         print(self.start[0])
 
         self.graph = ax.plot(self.xs,self.ys,'ko')
+        self.graph = ax.plot(self.buffer_x,self.buffer_y,'co')
         self.graph = ax.plot(self.start[0],self.start[1],'go')
         self.graph = ax.plot(self.end[0],self.end[1],'ro')
         self.graph = ax.plot([],[], 'bx', markersize = 3)[0]
@@ -104,7 +110,6 @@ class DJI:
 
             ax.plot(self.robotx, self.roboty, 'go', markersize=3)
             ax.plot(self.pathx, self.pathy, 'ro', markersize=3)
-            # ax.plot(self.interpx, self.interpy, 'mo', markersize=3)
 
         plt.show()
         # ani.save("dfs_map1.gif", writer="pillow", fps = 30)
@@ -114,9 +119,12 @@ class DJI:
         visited = {}
         map = {}
         path = []
+        buffer = 2
 
         for row in range(len(self.matrix)):
             for ind, element in enumerate(self.matrix[row]):
+                look = [row, ind]
+                check = [(look[0]-buffer, look[1]), (look[0]+buffer, look[1]), (look[0], look[1]-buffer), (look[0], look[1]+buffer), (look[0]-buffer, look[1]-buffer), (look[0]+buffer, look[1]+buffer), (look[0]+buffer, look[1]-buffer), (look[0]-buffer, look[1]+buffer)]
                 if element == '0' or element == '3':
                     location = (row, ind)
                     unvisited[str(location)] = float('inf')
@@ -133,12 +141,12 @@ class DJI:
             if self.matrix[look[0]][look[1]] != '1':
                 adjacent = [(look[0]-1, look[1]), (look[0]+1, look[1]), (look[0], look[1]-1), (look[0], look[1]+1), (look[0]-1, look[1]-1), (look[0]+1, look[1]+1), (look[0]+1, look[1]-1), (look[0]-1, look[1]+1)]
                 for adj in adjacent:
-                    if (str(adj) in unvisited) and adj[0] >= 0 and adj[1] >= 0:
+                    if (str(adj) in unvisited) and adj[0] > 0 and adj[1] > 0:
                         distance = self.dist(adj, look)+unvisited[str(look)]
                         if distance < unvisited[str(adj)]:
                             unvisited[str(adj)] = distance
-                        
-                        if not(str(adj) in map):
+
+                        if not(str(adj) in map):        
                             map[str(adj)] = str(look)
                 
                 visited[str(look)] = unvisited[str(look)]
@@ -174,9 +182,9 @@ class DJI:
     def animate(self, frame):
         self.graph.set_xdata(self.resultx[:frame*20])
         self.graph.set_ydata(self.resulty[:frame*20])
-        
-if __name__ == '__main__':
-    path = DJI("Project 1\\lab1.csv")
-    path.initPlot()
-    path.search()
-    path.plot(True)
+
+if __name__ == "__main__":
+    search = DJI("Project 1\\lab1.csv")
+    search.initPlot()
+    search.search()
+    search.plot(True)
