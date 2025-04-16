@@ -1,0 +1,5 @@
+path: ./
+train: green_brick_train
+val: green_brick_validation
+nc: 1  # Number of classes (1 for only "object")
+names: ["green_brick"]
