@@ -9,7 +9,12 @@ from robomaster import robot
 from robomaster import camera
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+<<<<<<< Updated upstream
 from djikstra import DJI
+=======
+from dijkstra import DJI
+import multiprocessing 
+>>>>>>> Stashed changes
 
 class AprilTagDetector: # Given
     def __init__(self, K, family="tag36h11", threads=2, marker_size_m=0.16):
@@ -22,6 +27,11 @@ class AprilTagDetector: # Given
             camera_params=self.camera_params, tag_size=self.marker_size_m)
         return detections
 
+'''
+(Dictionary)
+Desc: describes the following april tag numbers into its real coordinate
+position and the normal unit vector of the tag in real space
+'''
 # X, Y coordinates, X and Y orientation
 tagDict = {
     30: [[0.532, 1.995, 0], [1, 1, 0]],
@@ -83,14 +93,12 @@ def draw_detections(frame, detections): # Given
         cv2.line(frame, top_right, bottom_left, color=(0, 0, 255), thickness=2)
 
 '''
-Desc: Proportional-Integral control loop for the robot to follow an April tag
+Desc: Proportional control loop for the robot to follow an April tag
 
 Input:
 - robot_pos: Robot current position
 - dest_pos: Desired destination
-- sumX, sumY, sumZ: summation term for the integral part of the control loop
-- dt: delta time for the integral loop
-Output: 
+Output: going to a desired destination
 '''
 def control_loop(ep_robot, ep_chassis, robot_pos, dest_pos, Rpose, angle):
     Px = 1.5
@@ -132,7 +140,8 @@ def control_loop(ep_robot, ep_chassis, robot_pos, dest_pos, Rpose, angle):
     return errorX, errorY, angle
 
 '''
-Desc: finds the nearest april tag in the camera view based on pure distance to robot
+Desc: finds the nearest april tag in the camera view based on pure distance to robot,
+and has a cutoff based on how angled the tag is 
 
 Input: detections
 Output: closestTag object
@@ -189,6 +198,13 @@ def relative2world(tag):
     y_abs = tgy+y_rel_rot*tgoy
     return x_abs, y_abs
 
+'''
+Solely to test how well robot can track it position in the real world
+
+Input: april tag (in view of camera)
+Output: pose/orientation of the robot (in console)
+
+'''
 def test_tag(ep_camera, apriltag):
     while True:
         try:
@@ -220,7 +236,6 @@ Input: april tag
 Output: mapping of the robot in the maze
 
 '''
-
 def detect_tag_loop(ep_camera, apriltag):
     # Constants
     yaw_lim = np.pi/3
@@ -266,6 +281,14 @@ def detect_tag_loop(ep_camera, apriltag):
         if cv2.waitKey(1) == ord('q'):
             break
 
+'''
+For Project 0, this is the original loop that would follow an april tag
+using a PI loop
+
+Input: singular april tag (in camera view)
+Output: robot follows april tag
+
+'''
 def motionControl(ep_robot, ep_chassis, ep_camera, apriltag):
     errorSumX = 0
     errorSumY = 0
@@ -318,6 +341,14 @@ def motionControl(ep_robot, ep_chassis, ep_camera, apriltag):
             plt.show()
             break
 
+'''
+Using P loop and coordinates on the desired path, will follow the shortest path
+from start to end goal
+
+Input: path coordinates and april tags
+Output: follow coordinates and orient itself using the tags in real world
+
+'''
 def maze_movement(ep_robot, ep_chassis, ep_camera, apriltag):
     # Constants
     plotStart = time.time()
