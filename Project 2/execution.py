@@ -399,6 +399,7 @@ def test3b_color():
     path = open_new_file("Project 2")
     with open(path, 'w') as data:
         while True:
+            timeStart = time.time()
             try:
                 img = robo.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
             except Empty:
@@ -425,7 +426,8 @@ def test3b_color():
 
             # Telemetry from Robot
             print(f"isAligned: {alignment}, State: {state}, Center X: {x}, Distance: {y}")
-            save_data(data, f"{x}, {y}\n")
+            save_data(data, f"{time.time() - timeStart}\n")
+            # print(time.time() - timeStart)
 
             # Display the captured frame
             cv2.imshow('Camera', brick)
