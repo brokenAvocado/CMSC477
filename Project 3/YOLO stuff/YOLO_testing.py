@@ -179,37 +179,71 @@ class YOLO_tester:
         video_counter = 0
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for .mp4 format
 
+        # Movement parameters
+        MOVE_DIST = 0.2  # meters
+        ROTATE_ANGLE = 15  # degrees
+        MOVE_SPEED = 0.7  # m/s
+        ROTATE_SPEED = 45  # deg/s
+
+        # Arm movement parameters
+        ARM_STEP = 10  # degrees per press
+
         while True:
-            img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
-            if img is None:
-                print("Failed to grab frame.")
+            if keyboard.is_pressed("w"):
+                ep_chassis.move(x=MOVE_DIST, y=0, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
+            elif keyboard.is_pressed("s"):
+                ep_chassis.move(x=-MOVE_DIST, y=0, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
+            elif keyboard.is_pressed("a"):
+                ep_chassis.move(x=0, y=-MOVE_DIST, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
+            elif keyboard.is_pressed("d"):
+                ep_chassis.move(x=0, y=MOVE_DIST, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
+            elif keyboard.is_pressed("q"):
+                ep_chassis.move(x=0, y=0, z=ROTATE_ANGLE, z_speed=ROTATE_SPEED).wait_for_completed()
+            elif keyboard.is_pressed("e"):
+                ep_chassis.move(x=0, y=0, z=-ROTATE_ANGLE, z_speed=ROTATE_SPEED).wait_for_completed()
+            elif keyboard.is_pressed("up"):
+                ep_robot.gripper.move(arm=-ARM_STEP).wait_for_completed()  # Replace with correct API
+            elif keyboard.is_pressed("down"):
+                ep_robot.gripper.move(arm=ARM_STEP).wait_for_completed()   # Replace with correct API
+            elif keyboard.is_pressed("esc"):
+                print("Exiting control...")
                 break
+            time.sleep(0.01)
 
-            cv2.imshow("Robot Camera", img)
+            try:
+                img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
+                if img is None:
+                    print("Failed to grab frame.")
+                    break
 
-            key = cv2.waitKey(1) & 0xFF
+                cv2.imshow("Robot Camera", img)
 
-            if key == ord('m'):
-                if not is_recording:
-                    video_filename = f"video_{video_counter}.mp4"
-                    video_filepath = os.path.join(save_path, video_filename)
-                    height, width = img.shape[:2]
-                    video_writer = cv2.VideoWriter(video_filepath, fourcc, 20.0, (width, height))
-                    is_recording = True
-                    print(f"Started recording: {video_filepath}")
-                else:
-                    is_recording = False
-                    video_writer.release()
-                    video_writer = None
-                    print("Stopped recording.")
-                    video_counter += 1
+                key = cv2.waitKey(1) & 0xFF
 
-            elif key == ord('q'):
-                print("Exiting...")
-                break
+                if key == ord('m'):
+                    if not is_recording:
+                        video_filename = f"video_{video_counter}.mp4"
+                        video_filepath = os.path.join(save_path, video_filename)
+                        height, width = img.shape[:2]
+                        video_writer = cv2.VideoWriter(video_filepath, fourcc, 20.0, (width, height))
+                        is_recording = True
+                        print(f"Started recording: {video_filepath}")
+                    else:
+                        is_recording = False
+                        video_writer.release()
+                        video_writer = None
+                        print("Stopped recording.")
+                        video_counter += 1
 
-            if is_recording and video_writer is not None:
-                video_writer.write(img)
+                elif key == ord('p'):
+                    print("Exiting...")
+                    break
+
+                if is_recording and video_writer is not None:
+                    video_writer.write(img)
+            except Empty:
+                time.sleep(.001)
+                continue
 
         # Cleanup
         if video_writer is not None:
@@ -322,7 +356,7 @@ class YOLO_tester:
 
 def main():
     test = YOLO_tester()
-    test.collect_images_robot()
+    test.collect_video_robot()
     #test.split()
     #test.laptop_cam()
 
