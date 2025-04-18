@@ -1,0 +1,5 @@
+path: C:/Users/Trevor/Documents/Python Scripts/CMSC477/Project 3/YOLO stuff/Red_Green Testing/datasets/
+train: red_green_train
+val: red_green_validation
+nc: 1  # Number of classes (1 for only "object")
+names: ["brick"]

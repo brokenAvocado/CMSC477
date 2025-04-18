@@ -1,0 +1,59 @@
+(Use the Green Brick Testing folder as an example for all of this)
+
+1. Create a folder in YOLO_stuff to save your new model stuff, you will put all your stuff in here at the end
+
+2. Run YOLO_testing.py with only test.collect_images()
+	a. Enter the name of the folder you want the images to be saved to.
+	b. Press "m" to take a picture
+	c. Press "q" when you are done taking pictures
+
+3. Create a .txt file with the names of your objects
+
+4. Go into the YoloLabel_v1.2.1 folder
+
+5. Run YoloLabel.exe
+
+6. Follow the tutorial at https://github.com/developer0hye/Yolo_Label?tab=readme-ov-file#tutorial--usage
+
+7. Confirm that your data has been labeled properly by checking 
+   that each picture in your folder has an associated .txt file
+
+8. Run YOLO_testing.py with only test.split()
+	a. Enter the name of the folder you want to split
+	b. Enter (as an integer) the percentage of images you want to train on
+
+9. Create a folder called "datasets", put your training and validation folders in here
+
+10. Put the datasets folder into your models folder
+
+11. Create your data.yaml file
+	a. path: <The full path to your datasets folder
+	b. train: Name of the folder with your training data
+	c. val: Name of the folder with your validation data
+	d. nc: Number of classes you are training on (nothing is not a class)
+	e. names: ["<class name 1>", "<class name 2>", ... ]
+
+12. Put your data.yaml file in your models folder
+
+13. In terminal run "yolo detect train data=<folder_name>/data.yaml model=yolov8s.pt imgsz=51 epochs=50"
+	a. Adding epochs can improve accuracy but risks overfitting
+	b. Make sure imgsz=<num> is correct (num should be the number of training images)
+	c. Replace <folder_name>
+
+14. Navigate to the folder "runs/detect/train{N}" take your entire train folder and put it in your model folder
+	a. Consider renaming it to avoid future conflicts
+
+15. Run YOLO_testing.py with only test.laptop_cam() or test.robot_cam()
+	a. Specify the full folder path of your model when prompted for it
+
+
+
+
+
+
+
+
+
+
+
+
