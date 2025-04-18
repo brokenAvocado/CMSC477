@@ -4,9 +4,13 @@ import random
 import shutil
 from ultralytics import YOLO
 import time
+import robomaster
+from robomaster import robot
+from robomaster import camera
 
 class YOLO_tester:
     def __init__(self):
+        
         return
     
     def collect_images_laptop(self):
@@ -58,6 +62,15 @@ class YOLO_tester:
         cv2.destroyAllWindows()
 
     def collect_images_robot(self):
+        ep_robot = robot.Robot()
+        ep_robot.initialize(conn_type="sta", sn="3JKCH8800100UB")
+        ep_arm = self.ep_robot.robotic_arm
+        ep_gripper = self.ep_robot.gripper
+        ep_chassis = self.ep_robot.chassis
+        
+        # Camera Init
+        ep_camera = self.ep_robot.camera
+
         # Prompt user for folder name
         folder_name = input("Enter the folder name where you want to save images: ")
 
@@ -69,23 +82,19 @@ class YOLO_tester:
         os.makedirs(save_path, exist_ok=True)
 
         # Start video capture (0 = default camera)
-        cap = cv2.VideoCapture(0)
-
-        if not cap.isOpened():
-            print("Error: Could not open webcam.")
-            exit()
+        ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
 
         print("Press 'm' to capture an image. Press 'q' to quit.")
 
         img_counter = 0
 
         while True:
-            ret, frame = cap.read()
-            if not ret:
+            img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
+            if not img:
                 print("Failed to grab frame.")
                 break
 
-            cv2.imshow("Laptop Camera", frame)
+            cv2.imshow("Laptop Camera", img)
 
             key = cv2.waitKey(1) & 0xFF
 
@@ -93,7 +102,7 @@ class YOLO_tester:
                 # Save the image
                 filename = f"capture_{img_counter}.jpg"
                 filepath = os.path.join(save_path, filename)
-                cv2.imwrite(filepath, frame)
+                cv2.imwrite(filepath, img)
                 print(f"Captured: {filepath}")
                 img_counter += 1
 
@@ -102,7 +111,10 @@ class YOLO_tester:
                 break
 
         # Release resources
-        cap.release()
+        ep_arm.unsub_position()
+        print('Waiting for robomaster shutdown')
+        ep_camera.stop_video_stream()
+        ep_robot.close()
         cv2.destroyAllWindows()
 
     def split(self):
