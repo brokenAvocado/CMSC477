@@ -2,11 +2,12 @@ import cv2
 import os
 import random
 import shutil
-from ultralytics import YOLO
 import time
 import robomaster
 from robomaster import robot
 from robomaster import camera
+import keyboard
+from queue import Empty
 
 class YOLO_tester:
     def __init__(self):
@@ -64,12 +65,12 @@ class YOLO_tester:
     def collect_images_robot(self):
         ep_robot = robot.Robot()
         ep_robot.initialize(conn_type="sta", sn="3JKCH8800100UB")
-        ep_arm = self.ep_robot.robotic_arm
-        ep_gripper = self.ep_robot.gripper
-        ep_chassis = self.ep_robot.chassis
+        ep_arm = ep_robot.robotic_arm
+        ep_gripper = ep_robot.gripper
+        ep_chassis = ep_robot.chassis
         
         # Camera Init
-        ep_camera = self.ep_robot.camera
+        ep_camera = ep_robot.camera
 
         # Prompt user for folder name
         folder_name = input("Enter the folder name where you want to save images: ")
@@ -88,27 +89,58 @@ class YOLO_tester:
 
         img_counter = 0
 
+        # Movement parameters
+        MOVE_DIST = 0.2  # meters
+        ROTATE_ANGLE = 15  # degrees
+        MOVE_SPEED = 0.7  # m/s
+        ROTATE_SPEED = 45  # deg/s
+
+        # Arm movement parameters
+        ARM_STEP = 10  # degrees per press
+
         while True:
-            img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
-            if not img:
-                print("Failed to grab frame.")
+            if keyboard.is_pressed("w"):
+                ep_chassis.move(x=MOVE_DIST, y=0, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
+            elif keyboard.is_pressed("s"):
+                ep_chassis.move(x=-MOVE_DIST, y=0, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
+            elif keyboard.is_pressed("a"):
+                ep_chassis.move(x=0, y=-MOVE_DIST, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
+            elif keyboard.is_pressed("d"):
+                ep_chassis.move(x=0, y=MOVE_DIST, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
+            elif keyboard.is_pressed("q"):
+                ep_chassis.move(x=0, y=0, z=ROTATE_ANGLE, z_speed=ROTATE_SPEED).wait_for_completed()
+            elif keyboard.is_pressed("e"):
+                ep_chassis.move(x=0, y=0, z=-ROTATE_ANGLE, z_speed=ROTATE_SPEED).wait_for_completed()
+            elif keyboard.is_pressed("up"):
+                ep_robot.gripper.move(arm=-ARM_STEP).wait_for_completed()  # Replace with correct API
+            elif keyboard.is_pressed("down"):
+                ep_robot.gripper.move(arm=ARM_STEP).wait_for_completed()   # Replace with correct API
+            elif keyboard.is_pressed("esc"):
+                print("Exiting control...")
                 break
+            time.sleep(0.01)
 
-            cv2.imshow("Laptop Camera", img)
+            try:
+                img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
 
-            key = cv2.waitKey(1) & 0xFF
+                cv2.imshow("Laptop Camera", img)
 
-            if key == ord('m'):
-                # Save the image
-                filename = f"capture_{img_counter}.jpg"
-                filepath = os.path.join(save_path, filename)
-                cv2.imwrite(filepath, img)
-                print(f"Captured: {filepath}")
-                img_counter += 1
+                key = cv2.waitKey(1) & 0xFF
 
-            elif key == ord('q'):
-                print("Exiting...")
-                break
+                if key == ord('m'):
+                    # Save the image
+                    filename = f"capture_{img_counter}.jpg"
+                    filepath = os.path.join(save_path, filename)
+                    cv2.imwrite(filepath, img)
+                    print(f"Captured: {filepath}")
+                    img_counter += 1
+
+                elif key == ord('p'):
+                    print("Exiting...")
+                    break
+            except Empty:
+                time.sleep(.001)
+                continue
 
         # Release resources
         ep_arm.unsub_position()
@@ -219,7 +251,7 @@ class YOLO_tester:
 
 def main():
     test = YOLO_tester()
-    test.collect_images()
+    test.collect_images_robot()
     #test.split()
     #test.laptop_cam()
 
