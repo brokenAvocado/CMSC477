@@ -149,6 +149,77 @@ class YOLO_tester:
         ep_robot.close()
         cv2.destroyAllWindows()
 
+    def collect_video_robot(self):
+        ep_robot = robot.Robot()
+        ep_robot.initialize(conn_type="sta", sn="3JKCH8800100UB")
+        ep_arm = ep_robot.robotic_arm
+        ep_gripper = ep_robot.gripper
+        ep_chassis = ep_robot.chassis
+
+        # Camera Init
+        ep_camera = ep_robot.camera
+
+        # Prompt user for folder name
+        folder_name = input("Enter the folder name where you want to save the video: ")
+
+        # Get the current working directory
+        script_dir = os.getcwd()
+        save_path = os.path.join(script_dir, folder_name)
+
+        # Create folder if it doesn't exist
+        os.makedirs(save_path, exist_ok=True)
+
+        # Start video stream
+        ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
+
+        print("Press 'm' to toggle video recording. Press 'q' to quit.")
+
+        is_recording = False
+        video_writer = None
+        video_counter = 0
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for .mp4 format
+
+        while True:
+            img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
+            if img is None:
+                print("Failed to grab frame.")
+                break
+
+            cv2.imshow("Robot Camera", img)
+
+            key = cv2.waitKey(1) & 0xFF
+
+            if key == ord('m'):
+                if not is_recording:
+                    video_filename = f"video_{video_counter}.mp4"
+                    video_filepath = os.path.join(save_path, video_filename)
+                    height, width = img.shape[:2]
+                    video_writer = cv2.VideoWriter(video_filepath, fourcc, 20.0, (width, height))
+                    is_recording = True
+                    print(f"Started recording: {video_filepath}")
+                else:
+                    is_recording = False
+                    video_writer.release()
+                    video_writer = None
+                    print("Stopped recording.")
+                    video_counter += 1
+
+            elif key == ord('q'):
+                print("Exiting...")
+                break
+
+            if is_recording and video_writer is not None:
+                video_writer.write(img)
+
+        # Cleanup
+        if video_writer is not None:
+            video_writer.release()
+        ep_camera.stop_video_stream()
+        ep_arm.unsub_position()
+        ep_robot.close()
+        cv2.destroyAllWindows()
+
+
     def split(self):
         # Prompt user for input
         directory = input("Enter the name of the directory containing .jpg images: ").strip()
