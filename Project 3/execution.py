@@ -54,6 +54,33 @@ def apriltag_test():
         if cv2.waitKey(1) == ord('q'):
             break
 
+def show_camera_feed():
+    robo.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
+    while True:
+        try:
+            img = robo.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
+        except Empty:
+            time.sleep(0.001)
+            continue
+
+        # Display the captured frame
+        cv2.imshow('Camera', img)
+
+        if cv2.waitKey(1) == ord('q'):
+            break
+
+def doarmstuff():
+    # robo.read_joint_angles()
+
+    # robo.stow_arm()
+    # time.sleep(2)
+    # robo.ready_arm()
+    # time.sleep(2)
+    # robo.pickup()
+    # time.sleep(1)
+    # robo.stow_arm()
+    
+    robo.ready_arm()
 
 if __name__ == "__main__":
     # Robot Init
@@ -61,7 +88,8 @@ if __name__ == "__main__":
     apriltag = AprilTagDetector()
 
     try:
-        apriltag_test()
+        # show_camera_feed()
+        doarmstuff()
     except KeyboardInterrupt:
         pass
     except Exception as e:

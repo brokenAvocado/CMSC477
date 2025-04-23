@@ -20,9 +20,48 @@ class motion:
         self.ep_arm = self.ep_robot.robotic_arm
         self.ep_gripper = self.ep_robot.gripper
         self.ep_chassis = self.ep_robot.chassis
+        self.ep_servo = self.ep_robot.servo
         
         # Camera Init
         self.ep_camera = self.ep_robot.camera
+
+        # State Init
+        self.stowed = True
+
+    def read_joint_angles(self):
+        angle1 = self.ep_servo.get_angle(1)
+        angle2 = self.ep_servo.get_angle(2)
+        print('1: {0}   2: {1}'.format(angle1, angle2))
+
+    def stow_arm(self): # Stows the arm back to its original position
+        print('stowing')
+        self.ep_arm.moveto(1, -10).wait_for_completed()
+        self.ep_arm.moveto(2, 15).wait_for_completed()
+        print('stowed')
+        # self.ep_gripper.open(100)
+
+    def ready_arm(self): # Readies the arm to approach an object
+        print('getting ready')
+        self.ep_arm.move(x=0, y=-30).wait_for_completed()
+        time.sleep(1)
+        print('ready')
+
+    def pickup(self): # Picks up an object (lowers arm slightly, grips, raises)
+        self.ep_gripper.open(100)
+        time.sleep(1)
+        self.ep_gripper.close(100)
+        time.sleep(1)
+        self.ep_gripper.close(100)
+        time.sleep(2)
+        self.ep_arm.move(x=0, y=30).wait_for_completed()
+        time.sleep(1)
+        self.ep_gripper.open(100)
+
+    def grasp(self):
+        self.ep_arm.move(x=-50, y=0).wait_for_completed()
+
+    def release(self):
+        self.ep_arm.move(x=-50, y=0).wait_for_completed()
 
     def orbit(self, velx=0, vely=0, velz=0):
         # self.ep_chassis.drive_speed(x=velx, y=vely, z=velz, timeout = 0.02)
