@@ -3,11 +3,11 @@ import os
 import random
 import shutil
 import time
-import robomaster
-from robomaster import robot
-from robomaster import camera
-import keyboard
+from ultralytics import YOLO
 from queue import Empty
+import shutil
+import re
+import numpy as np
 
 class YOLO_tester:
     def __init__(self):
@@ -354,11 +354,159 @@ class YOLO_tester:
                 end = time.time()
                 print(1.0 / (end-start))
 
+    def run_model_on_video(self, video_path):
+        print('Loading model...')
+        model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\YOLO stuff\\Robot_Cones_Detection\\train7\\weights\\best.pt")
+
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            print(f"Error: Unable to open video file: {video_path}")
+            return
+
+        paused = False
+        frame_idx = 0
+
+        while True:
+            if not paused:
+                ret, frame = cap.read()
+                if not ret:
+                    print("Restarting video...")
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                    frame_idx = 0
+                    continue
+                frame_idx = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
+            else:
+                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+                ret, frame = cap.read()
+
+            if frame is None:
+                continue
+
+            start = time.time()
+            if model.predictor:
+                model.predictor.args.verbose = False
+            result = model.predict(source=frame, show=False)[0]
+
+            # Draw boxes
+            boxes = result.boxes
+            for box in boxes:
+                xyxy = box.xyxy.cpu().numpy().flatten()
+                cv2.rectangle(frame,
+                            (int(xyxy[0]), int(xyxy[1])),
+                            (int(xyxy[2]), int(xyxy[3])),
+                            color=(0, 0, 255), thickness=2)
+
+            cv2.imshow("YOLO Video Detection", frame)
+
+            key = cv2.waitKey(20) & 0xFF
+
+            if key == ord('q'):
+                break
+            elif key == ord('p'):
+                paused = not paused
+            elif key == ord('<') and paused:
+                frame_idx = max(0, frame_idx - 2)  # Go back one frame, accounting for current frame
+                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+            elif key == ord('>') and paused:
+                frame_idx = frame_idx + 1
+                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+
+            end = time.time()
+            print("FPS:", round(1.0 / (end - start), 2))
+
+        cap.release()
+        cv2.destroyAllWindows()
+
+
+    def combine_and_rename_images(self, folder_list, dest_folder="combined_images"):
+        # Create destination folder if it doesn't exist
+        os.makedirs(dest_folder, exist_ok=True)
+
+        counter = 0  # For naming captures
+
+        for folder in folder_list:
+            if not os.path.isdir(folder):
+                print(f"Skipping '{folder}': Not a valid directory.")
+                continue
+
+            for filename in sorted(os.listdir(folder)):
+                if filename.lower().endswith(".jpg"):
+                    src_path = os.path.join(folder, filename)
+                    dest_path = os.path.join(dest_folder, f"capture_{counter}.jpg")
+                    
+                    shutil.copy2(src_path, dest_path)
+                    counter += 1
+
+        print(f"Copied and renamed {counter} images into '{dest_folder}'.")
+
+    def augment_images(self):
+        folder = input("Enter the folder containing .jpg images to augment: ").strip()
+
+        if not os.path.isdir(folder):
+            print(f"Error: '{folder}' is not a valid folder.")
+            return
+
+        # Gather all .jpg image filenames
+        image_files = [f for f in os.listdir(folder) if f.lower().endswith('.jpg')]
+
+        if not image_files:
+            print("No .jpg images found.")
+            return
+
+        # Find the highest capture index
+        capture_pattern = re.compile(r"capture_(\d+)\.jpg")
+        max_index = -1
+        for filename in image_files:
+            match = capture_pattern.match(filename)
+            if match:
+                max_index = max(max_index, int(match.group(1)))
+
+        next_index = max_index + 1
+
+        for filename in image_files:
+            path = os.path.join(folder, filename)
+            img = cv2.imread(path)
+
+            if img is None:
+                continue
+
+            # Original dimensions
+            h, w = img.shape[:2]
+
+            # Decide random augmentations
+            flip = random.choice([True, False])
+            rotate = random.choice([-5, 0, 5])  # degrees
+
+            aug_img = img.copy()
+
+            if flip:
+                aug_img = cv2.flip(aug_img, 1)  # Horizontal flip
+
+            if rotate != 0:
+                center = (w // 2, h // 2)
+                matrix = cv2.getRotationMatrix2D(center, rotate, 1.0)
+                aug_img = cv2.warpAffine(aug_img, matrix, (w, h), borderMode=cv2.BORDER_REPLICATE)
+
+            # Save the new image
+            new_filename = f"capture_{next_index}.jpg"
+            new_path = os.path.join(folder, new_filename)
+            cv2.imwrite(new_path, aug_img)
+            print(f"Saved: {new_filename}")
+            next_index += 1
+
+        print("Augmentation complete.")
+
+# Example usage:
+# augment_images()
+
 def main():
     test = YOLO_tester()
-    test.collect_video_robot()
+    #test.collect_video_robot()
     #test.split()
     #test.laptop_cam()
+    #test.combine_and_rename_images(["robot_brick1", "robot_brick2", "robot_brick3", "robot_brick4"])
+    test.run_model_on_video("video_2.mp4")
+    #test.augment_images()
 
 if __name__ == "__main__":
     main()
