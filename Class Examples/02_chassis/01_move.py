@@ -12,6 +12,10 @@ ROTATE_SPEED = 45  # deg/s
 # Arm movement parameters
 ARM_STEP = 10  # degrees per press
 
+def printStatement(pos_info):
+    x, y, z = pos_info
+    print(f"Pos X: {x} Pos Y: {y} Pos Z: {z}")
+
 def main():
     robomaster.config.ROBOT_IP_STR = "192.168.50.121"
     ep_robot = robot.Robot()
@@ -21,7 +25,7 @@ def main():
 
     try:
         print("Use W/A/S/D to move, Q/E to rotate, Up/Down to control arm. ESC to quit.")
-        
+        ep_chassis.sub_position(freq = 10, callback = printStatement)
         while True:
             if keyboard.is_pressed("w"):
                 ep_chassis.move(x=MOVE_DIST, y=0, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
@@ -35,10 +39,13 @@ def main():
                 ep_chassis.move(x=0, y=0, z=ROTATE_ANGLE, z_speed=ROTATE_SPEED).wait_for_completed()
             elif keyboard.is_pressed("e"):
                 ep_chassis.move(x=0, y=0, z=-ROTATE_ANGLE, z_speed=ROTATE_SPEED).wait_for_completed()
-            elif keyboard.is_pressed("up"):
-                ep_robot.gripper.move(arm=-ARM_STEP).wait_for_completed()  # Replace with correct API
-            elif keyboard.is_pressed("down"):
-                ep_robot.gripper.move(arm=ARM_STEP).wait_for_completed()   # Replace with correct API
+            elif keyboard.is_pressed("r"):
+                ep_chassis.unsub_position()
+                ep_chassis.sub_position(freq = 10, callback = printStatement)
+            # elif keyboard.is_pressed("up"):
+            #     ep_robot.gripper.move(arm=-ARM_STEP).wait_for_completed()  # Replace with correct API
+            # elif keyboard.is_pressed("down"):
+            #     ep_robot.gripper.move(arm=ARM_STEP).wait_for_completed()   # Replace with correct API
             elif keyboard.is_pressed("esc"):
                 print("Exiting control...")
                 break

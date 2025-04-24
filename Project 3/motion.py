@@ -28,6 +28,17 @@ class motion:
         # State Init
         self.stowed = True
 
+    def printStatement(self,pos_info):
+        x, y, z = pos_info
+        print(f"Pos X: {x} Pos Y: {y} Pos Z: {z}")
+
+    def get_robotPosition(self):
+        '''
+        Gets the relative position of the robot based on where it started
+        '''
+
+        self.ep_chassis.sub_position(freq = 5, callback = self.printStatement)
+
     def read_joint_angles(self):
         angle1 = self.ep_servo.get_angle(1)
         angle2 = self.ep_servo.get_angle(2)

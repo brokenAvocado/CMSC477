@@ -1,3 +1,4 @@
+import keyboard
 import pupil_apriltags
 import cv2
 import numpy as np
@@ -22,6 +23,9 @@ def shutdown():
     robo.ep_robot.close()
 
 def get_position(frame):
+    '''
+    Gets position of the april tags
+    '''
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     gray.astype(np.uint8)
     detections = apriltag.find_tags(gray)
@@ -36,6 +40,9 @@ def get_position(frame):
     apriltag.draw_detections(frame, detections)
 
 def apriltag_test():
+    '''
+    Testing code for Apriltag
+    '''
     robo.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
     while True:
         try:
@@ -82,6 +89,15 @@ def doarmstuff():
     
     robo.ready_arm()
 
+def moveTest():
+    robo.get_robotPosition()
+    while True:
+        robo.ep_chassis.drive_speed(x=0.1, y=0, z=0, timeout=5)
+
+        if keyboard.is_pressed("esc"):
+            print("Exiting control...")
+            break
+
 if __name__ == "__main__":
     # Robot Init
     robo = motion()
@@ -89,7 +105,7 @@ if __name__ == "__main__":
 
     try:
         # show_camera_feed()
-        doarmstuff()
+        moveTest()
     except KeyboardInterrupt:
         pass
     except Exception as e:
