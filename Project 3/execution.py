@@ -77,17 +77,21 @@ def show_camera_feed():
             break
 
 def doarmstuff():
-    # robo.read_joint_angles()
-
-    # robo.stow_arm()
-    # time.sleep(2)
-    # robo.ready_arm()
-    # time.sleep(2)
-    # robo.pickup()
-    # time.sleep(1)
-    # robo.stow_arm()
-    
+    # robo.ep_arm.sub_position(freq=1, callback=robo.print_position)
+    # robo.ep_arm.moveto(187, -70).wait_for_completed()
+    # robo.ep_arm.move(0, -10).wait_for_completed()
+    robo.ep_gripper.open(100)
+    print('open')
+    time.sleep(3)
+    robo.stow_arm()
     robo.ready_arm()
+    robo.pickup()
+    time.sleep(1)
+    robo.stow_arm()
+    time.sleep(2)
+    robo.release()
+    time.sleep(1)
+
 
 def moveTest():
     robo.get_robotPosition()
@@ -105,7 +109,7 @@ if __name__ == "__main__":
 
     try:
         # show_camera_feed()
-        moveTest()
+        doarmstuff()
     except KeyboardInterrupt:
         pass
     except Exception as e:
