@@ -9,12 +9,8 @@ from robomaster import robot
 from robomaster import camera
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-<<<<<<< Updated upstream
-from djikstra import DJI
-=======
 from dijkstra import DJI
 import multiprocessing 
->>>>>>> Stashed changes
 
 class AprilTagDetector: # Given
     def __init__(self, K, family="tag36h11", threads=2, marker_size_m=0.16):
