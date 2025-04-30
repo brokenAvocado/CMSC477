@@ -1,0 +1,5 @@
+path: C:/Users/Trevor/Documents/Python Scripts/CMSC477/Project 3/YOLO stuff/Robot_Cones_Detection_Gray/datasets/
+train: robot_cones_images_train
+val: robot_cones_images_validation
+nc: 1  # Number of classes (1 for only "object")
+names: ["cone"]

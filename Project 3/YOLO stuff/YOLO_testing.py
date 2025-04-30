@@ -8,6 +8,7 @@ from queue import Empty
 import shutil
 import re
 import numpy as np
+from itertools import combinations
 
 class YOLO_tester:
     def __init__(self):
@@ -356,7 +357,7 @@ class YOLO_tester:
 
     def run_model_on_video(self, video_path):
         print('Loading model...')
-        model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\YOLO stuff\\Robot_Cones_Detection\\train7\\weights\\best.pt")
+        model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\YOLO stuff\\Robot_Cones_Detection_Gray\\train8\\weights\\best.pt")
 
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
@@ -389,12 +390,36 @@ class YOLO_tester:
 
             # Draw boxes
             boxes = result.boxes
-            for box in boxes:
-                xyxy = box.xyxy.cpu().numpy().flatten()
-                cv2.rectangle(frame,
-                            (int(xyxy[0]), int(xyxy[1])),
-                            (int(xyxy[2]), int(xyxy[3])),
-                            color=(0, 0, 255), thickness=2)
+            threshold = 50  # Euclidean distance threshold in pixels
+
+            # Step 1: Extract all boxes and compute centers
+            raw_boxes = [box.xyxy.cpu().numpy().flatten() for box in boxes]
+            centers = [((b[0] + b[2]) / 2, (b[1] + b[3]) / 2) for b in raw_boxes]
+
+            # Step 2: Track which boxes have been merged
+            used = set()
+            merged_boxes = []
+
+            for i, j in combinations(range(len(raw_boxes)), 2):
+                if i in used or j in used:
+                    continue
+                c1, c2 = centers[i], centers[j]
+                dist = np.linalg.norm(np.array(c1) - np.array(c2))
+                if dist < threshold:
+                    # Average the coordinates of the boxes
+                    merged = (np.array(raw_boxes[i]) + np.array(raw_boxes[j])) / 2
+                    merged_boxes.append(merged.astype(int))
+                    used.update([i, j])
+
+            # Add unmerged boxes
+            for idx, box in enumerate(raw_boxes):
+                if idx not in used:
+                    merged_boxes.append(box.astype(int))
+
+            # Step 3: Draw merged boxes
+            for box in merged_boxes:
+                x1, y1, x2, y2 = box
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color=(0, 0, 255), thickness=2)
 
             cv2.imshow("YOLO Video Detection", frame)
 
@@ -417,6 +442,92 @@ class YOLO_tester:
         cap.release()
         cv2.destroyAllWindows()
 
+    def run_model_on_video_gray(self, video_path):
+        print('Loading model...')
+        model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\YOLO stuff\\Robot_Cones_Detection_Gray\\train10\\weights\\best.pt")
+
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            print(f"Error: Unable to open video file: {video_path}")
+            return
+
+        paused = False
+        frame_idx = 0
+
+        while True:
+            if not paused:
+                ret, frame = cap.read()
+                if not ret:
+                    print("Restarting video...")
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                    frame_idx = 0
+                    continue
+                frame_idx = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
+            else:
+                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+                ret, frame = cap.read()
+
+            if frame is None:
+                continue
+
+            # === Convert to grayscale ===
+            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            # YOLO expects 3 channels, so convert back to BGR (visually still gray)
+            gray_bgr = cv2.cvtColor(gray_frame, cv2.COLOR_GRAY2BGR)
+
+            start = time.time()
+            if model.predictor:
+                model.predictor.args.verbose = False
+            result = model.predict(source=gray_bgr, show=False)[0]
+
+            # Draw boxes
+            boxes = result.boxes
+            threshold = 50  # Euclidean distance threshold in pixels
+
+            raw_boxes = [box.xyxy.cpu().numpy().flatten() for box in boxes]
+            centers = [((b[0] + b[2]) / 2, (b[1] + b[3]) / 2) for b in raw_boxes]
+
+            used = set()
+            merged_boxes = []
+
+            for i, j in combinations(range(len(raw_boxes)), 2):
+                if i in used or j in used:
+                    continue
+                c1, c2 = centers[i], centers[j]
+                dist = np.linalg.norm(np.array(c1) - np.array(c2))
+                if dist < threshold:
+                    merged = (np.array(raw_boxes[i]) + np.array(raw_boxes[j])) / 2
+                    merged_boxes.append(merged.astype(int))
+                    used.update([i, j])
+
+            for idx, box in enumerate(raw_boxes):
+                if idx not in used:
+                    merged_boxes.append(box.astype(int))
+
+            for box in merged_boxes:
+                x1, y1, x2, y2 = box
+                cv2.rectangle(gray_bgr, (x1, y1), (x2, y2), color=(0, 0, 255), thickness=2)
+
+            cv2.imshow("YOLO Detection on Grayscale Video", gray_bgr)
+
+            key = cv2.waitKey(20) & 0xFF
+
+            if key == ord('q'):
+                break
+            elif key == ord('p'):
+                paused = not paused
+            elif key == ord('<') and paused:
+                frame_idx = max(0, frame_idx - 2)
+                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+            elif key == ord('>') and paused:
+                frame_idx = frame_idx + 1
+                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+
+            end = time.time()
+            print("FPS:", round(1.0 / (end - start), 2))
+
+        cap.release()
+        cv2.destroyAllWindows()
 
     def combine_and_rename_images(self, folder_list, dest_folder="combined_images"):
         # Create destination folder if it doesn't exist
@@ -496,6 +607,37 @@ class YOLO_tester:
 
         print("Augmentation complete.")
 
+    def to_gray(self):
+        # Prompt the user for a folder name
+        folder = input("Enter the folder name: ").strip()
+
+        # Check if the folder exists
+        if not os.path.isdir(folder):
+            print(f"Error: '{folder}' is not a valid directory.")
+            return
+
+        # Process all .jpg files in the folder
+        for filename in os.listdir(folder):
+            if filename.lower().endswith('.jpg'):
+                file_path = os.path.join(folder, filename)
+
+                # Read image
+                img = cv2.imread(file_path)
+
+                if img is None:
+                    print(f"Warning: Failed to read {filename}")
+                    continue
+
+                # Convert to grayscale
+                gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+                # Save the grayscale image (overwrite original or add _gray)
+                gray_filename = os.path.splitext(filename)[0] + '.jpg'
+                gray_path = os.path.join(folder, gray_filename)
+                cv2.imwrite(gray_path, gray)
+
+                print(f"Converted: {filename} → {gray_filename}")
+
 # Example usage:
 # augment_images()
 
@@ -505,8 +647,10 @@ def main():
     #test.split()
     #test.laptop_cam()
     #test.combine_and_rename_images(["robot_brick1", "robot_brick2", "robot_brick3", "robot_brick4"])
-    test.run_model_on_video("video_2.mp4")
+    #test.run_model_on_video("video_0.mp4")
+    #test.run_model_on_video_gray("video_0.mp4")
     #test.augment_images()
+    #test.to_gray()
 
 if __name__ == "__main__":
     main()
