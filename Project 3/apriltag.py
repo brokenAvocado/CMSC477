@@ -31,11 +31,12 @@ class AprilTagDetector: # Given
             cv2.line(frame, top_right, bottom_left, color=(0, 0, 255), thickness=2)
 
     def plot_detections(self, detections, graph, quiver):
+        '''
+        Need to run initGraph for this to work
+        Plots the aruco tags as points on a graph
+        '''
         plot_x = []
         plot_y = []
-        arrow_x = []
-        arrow_y = []
-        labels = []
         amp = 0.2
 
         closeTag = self.closest(detections)
@@ -45,14 +46,9 @@ class AprilTagDetector: # Given
             pos, rot = self.get_pose_camera_frame(detection)
             plot_x.append(pos[0])
             plot_y.append(pos[2])
-            arrow_x.append(pos[0]-amp*np.sin(rot[1]))
-            arrow_y.append(pos[2]-amp*np.cos(rot[1]))
-
-            labels.append(detection.tag_id)
 
         # Plot vector for closest tag
         if not(closeTag is None):
-            posAlt, rotAlt = self.get_pose_camera_frame(closeTag)
             quiver.set_xdata([pos[0], pos[0]-amp*np.sin(rot[1])])
             quiver.set_ydata([pos[2], pos[2]-amp*np.cos(rot[1])])
 
@@ -86,6 +82,13 @@ class AprilTagDetector: # Given
 
         return t_ca, rotation
     
+    def movingAverage(self, data, window):
+        sum = 0
+        for ind, points in enumerate(data):
+            sum += points
+            if ind >= window:
+                return sum/window
+
     def closest(self,detections):
         closestDist = float('inf')
         closestTag = 0

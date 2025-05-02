@@ -34,6 +34,8 @@ def test_aprilTagRelative():
         except Empty:
             time.sleep(0.001)
             continue
+        
+        robo.teleop()
 
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         gray.astype(np.uint8)
@@ -45,7 +47,7 @@ def test_aprilTagRelative():
         # Display the captured frame
         cv2.imshow('Camera', img)
 
-        if cv2.waitKey(1) == ord('q'):
+        if cv2.waitKey(1) == ord('z'):
             break
 
 def show_camera_feed():
