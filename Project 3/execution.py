@@ -64,17 +64,15 @@ def show_camera_feed():
             break
 
 def doarmstuff():
-    # robo.read_joint_angles()
-
+    # robo.get_gripper_status()
     # robo.stow_arm()
-    # time.sleep(2)
-    # robo.ready_arm()
-    # time.sleep(2)
-    # robo.pickup()
-    # time.sleep(1)
-    # robo.stow_arm()
-    
-    robo.ready_arm()
+    try:
+        while True:
+            if keyboard.is_pressed('q'):
+                break
+            time.sleep(0.1)
+    except KeyboardInterrupt:
+        pass
 
 if __name__ == "__main__":
     # Robot Init
@@ -82,7 +80,7 @@ if __name__ == "__main__":
     apriltag = AprilTagDetector()
 
     try:
-        test_aprilTagRelative()
+        doarmstuff()
     except KeyboardInterrupt:
         pass
     except Exception as e:

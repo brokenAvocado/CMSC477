@@ -27,6 +27,7 @@ class motion:
 
         # State Init
         self.stowed = True
+        self.gripper = 'opened'
 
     def printStatement(self,pos_info):
         x, y, z = pos_info
@@ -39,16 +40,27 @@ class motion:
 
         self.ep_chassis.sub_position(freq = 5, callback = self.printStatement)
 
-    def print_position(_, positions):
+    def get_arm_position(self):
+        self.ep_arm.sub_position(freq=5, callback=self.arm_position_callback)
+
+    def arm_position_callback(_, positions):
         pos_x, pos_y = (positions[0], positions[1])
         if pos_y > 4000000000:
             pos_y = pos_y - 2**32
         print(f"Position X: {pos_x}, Position Y: {pos_y}")
+
+    def get_gripper_status(self):
+        self.ep_gripper.sub_status(freq=5, callback=self.gripper_status_callback)
+
+    def gripper_status_callback(self, status):
+        self.gripper = status
+        print(self.gripper)
     
     def read_joint_angles(self):
         angle1 = self.ep_servo.get_angle(1)
         angle2 = self.ep_servo.get_angle(2)
-        print('1: {0}   2: {1}'.format(angle1, angle2))
+        angle3 = self.ep_servo.get_angle(3)
+        print(f'1: {angle1}   2: {angle2}   3: {angle3}')
 
     def stow_arm(self): # Stows the arm back to its original position
         self.ep_arm.moveto(82, 41).wait_for_completed()
