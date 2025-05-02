@@ -22,28 +22,12 @@ def shutdown():
     robo.ep_camera.stop_video_stream()
     robo.ep_robot.close()
 
-def get_position(frame):
+def test_aprilTagRelative():
     '''
-    Gets position of the april tags
-    '''
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    gray.astype(np.uint8)
-    detections = apriltag.find_tags(gray)
-
-    if len(detections) > 0:
-        detection = apriltag.closest(detections)
-        pos, rot = apriltag.get_pose_camera_frame(detection)
-        x = pos[2]
-        y = pos[0]
-        print(f"Position X: {x}, Position Y: {y}, Rotation: {rot}")
-
-    apriltag.draw_detections(frame, detections)
-
-def apriltag_test():
-    '''
-    Testing code for Apriltag
+    Get relative positioning of AprilTags and represent them graphically
     '''
     robo.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
+    graph, quiver = apriltag.initGraph()
     while True:
         try:
             img = robo.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
@@ -51,9 +35,12 @@ def apriltag_test():
             time.sleep(0.001)
             continue
 
-        get_position(img)
-        thread1 = threading.Thread(target=robo.orbit)
-        thread1.start()
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        gray.astype(np.uint8)
+        detections = apriltag.find_tags(gray)
+
+        if len(detections) > 0:
+            apriltag.plot_detections(detections, graph, quiver)
 
         # Display the captured frame
         cv2.imshow('Camera', img)
@@ -77,30 +64,17 @@ def show_camera_feed():
             break
 
 def doarmstuff():
-    # robo.ep_arm.sub_position(freq=1, callback=robo.print_position)
-    # robo.ep_arm.moveto(187, -70).wait_for_completed()
-    # robo.ep_arm.move(0, -10).wait_for_completed()
-    robo.ep_gripper.open(100)
-    print('open')
-    time.sleep(3)
-    robo.stow_arm()
+    # robo.read_joint_angles()
+
+    # robo.stow_arm()
+    # time.sleep(2)
+    # robo.ready_arm()
+    # time.sleep(2)
+    # robo.pickup()
+    # time.sleep(1)
+    # robo.stow_arm()
+    
     robo.ready_arm()
-    robo.pickup()
-    time.sleep(1)
-    robo.stow_arm()
-    time.sleep(2)
-    robo.release()
-    time.sleep(1)
-
-
-def moveTest():
-    robo.get_robotPosition()
-    while True:
-        robo.ep_chassis.drive_speed(x=0.1, y=0, z=0, timeout=5)
-
-        if keyboard.is_pressed("esc"):
-            print("Exiting control...")
-            break
 
 if __name__ == "__main__":
     # Robot Init
@@ -108,8 +82,7 @@ if __name__ == "__main__":
     apriltag = AprilTagDetector()
 
     try:
-        # show_camera_feed()
-        doarmstuff()
+        test_aprilTagRelative()
     except KeyboardInterrupt:
         pass
     except Exception as e:
