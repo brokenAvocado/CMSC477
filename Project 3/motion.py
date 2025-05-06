@@ -78,32 +78,32 @@ class motion:
         self.ep_chassis.move(x=0, y=0, z=15, z_speed=45).wait_for_completed()
 
     def teleop(self):
-        move_speed = 0.7
+        move_speed = 0.3
         rotate_speed = 45
         # print("Use W/A/S/D to move, Q/E to rotate, Up/Down to control arm. ESC to quit.")
         if keyboard.is_pressed("w"):
             self.ep_chassis.drive_speed(x=move_speed, timeout=0.1)
         elif keyboard.is_pressed("s"):
             self.ep_chassis.drive_speed(x=-move_speed, timeout=0.1)
-        else:
-            self.ep_chassis.drive_speed(x=0, timeout=0.1)
+        # else:
+        #     self.ep_chassis.drive_speed(x=0, timeout=0.1)
 
-        if keyboard.is_pressed("a"):
-            self.ep_chassis.drive_speed(y=move_speed, timeout=0.1)
-        elif keyboard.is_pressed("d"):
+        elif keyboard.is_pressed("a"):
             self.ep_chassis.drive_speed(y=-move_speed, timeout=0.1)
-        else:
-            self.ep_chassis.drive_speed(y=0, timeout=0.1)
+        elif keyboard.is_pressed("d"):
+            self.ep_chassis.drive_speed(y=move_speed, timeout=0.1)
+        # else:
+        #     self.ep_chassis.drive_speed(y=0, timeout=0.1)
 
-        if keyboard.is_pressed("q"):
+        elif keyboard.is_pressed("q"):
             self.ep_chassis.drive_speed(z=rotate_speed, timeout=0.1)
         elif keyboard.is_pressed("e"):
             self.ep_chassis.drive_speed(z=-rotate_speed, timeout=0.1)
-        else:
-            self.ep_chassis.drive_speed(z=0, timeout=0.1)
+        # else:
+        #     self.ep_chassis.drive_speed(z=0, timeout=0.1)
         # elif keyboard.is_pressed("up"):
         #     ep_robot.gripper.move(arm=-ARM_STEP).wait_for_completed()  # Replace with correct API
         # elif keyboard.is_pressed("down"):
         #     ep_robot.gripper.move(arm=ARM_STEP).wait_for_completed()   # Replace with correct API
-        time.sleep(0.1)
-        self.ep_robot.close()
+        # time.sleep(0.1)
+        # self.ep_robot.close()

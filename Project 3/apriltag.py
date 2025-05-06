@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import sys
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 class AprilTagDetector: # Given
     def __init__(self, family="tag36h11", threads=2, marker_size_m=0.16):
@@ -12,12 +13,23 @@ class AprilTagDetector: # Given
         self.marker_size_m = marker_size_m
         self.detector = pupil_apriltags.Detector(family, threads)
 
+        self.boxWidth = 0.266
+        self.boxRadius = 0.266*2**0.5
+        self.detectedTags = []
+        self.relevantTags = []
+
     def find_tags(self, frame_gray):
+        '''
+        Finds any and all tags in camera frame
+        '''
         detections = self.detector.detect(frame_gray, estimate_tag_pose=True,
             camera_params=self.camera_params, tag_size=self.marker_size_m)
         return detections
 
     def draw_detections(self, frame, detections): # Given
+        '''
+        Draws AprilTags in the camera window with a red outline
+        '''
         for detection in detections:
             pts = detection.corners.reshape((-1, 1, 2)).astype(np.int32)
 
@@ -30,31 +42,54 @@ class AprilTagDetector: # Given
             cv2.line(frame, top_left, bottom_right, color=(0, 0, 255), thickness=2)
             cv2.line(frame, top_right, bottom_left, color=(0, 0, 255), thickness=2)
 
+    def point2circle(self, pos, rot):
+        '''
+        Based on a given detection's position and rotation matrix, outputs the center of
+        a bounding circle of where the box should be
+        '''
+        center_x = pos[0]+self.boxWidth/2*np.sin(rot[1])
+        center_y = pos[2]+self.boxWidth/2*np.cos(rot[1])
+
+        return center_x, center_y
+    
+    def filterClose(self, detections):
+        '''
+        Given list of detections, check for very close positions,
+        approximate it as one circle by averaging
+        '''
+        for detection in detections:
+            if not(detection in self.detectedTags) and len(self.detectedTags) > 0:
+                
+            else:
+                self.detectedTags.append(detection)
+
+
+
     def plot_detections(self, detections, graph, quiver):
         '''
         Need to run initGraph for this to work
-        Plots the aruco tags as points on a graph
+        Plots the aruco tags as cirlces on a graph
         '''
         plot_x = []
         plot_y = []
         amp = 0.2
 
-        closeTag = self.closest(detections)
+        # closeTag = self.closest(detections)
         
         # Do the following for all tags
         for detection in detections:
             pos, rot = self.get_pose_camera_frame(detection)
-            plot_x.append(pos[0])
-            plot_y.append(pos[2])
+            x, y = self.point2circle(pos, rot)
+            plot_x.append(x)
+            plot_y.append(y)
 
         # Plot vector for closest tag
-        if not(closeTag is None):
-            quiver.set_xdata([pos[0], pos[0]-amp*np.sin(rot[1])])
-            quiver.set_ydata([pos[2], pos[2]-amp*np.cos(rot[1])])
+        # if not(closeTag is None):
+        #     quiver.set_xdata([pos[0], pos[0]-amp*np.sin(rot[1])])
+        #     quiver.set_ydata([pos[2], pos[2]-amp*np.cos(rot[1])])
 
         # set the x and y data
-        graph.set_xdata(plot_x)
-        graph.set_ydata(plot_y)
+        graph.center = plot_x, plot_y
 
         # for i, label in enumerate(labels):
         #     plt.text(plot_x[i], plot_y[i], label, ha='center', va='bottom')
@@ -83,6 +118,9 @@ class AprilTagDetector: # Given
         return t_ca, rotation
     
     def movingAverage(self, data, window):
+        '''
+        Calculates the average of a frame of data
+        '''
         sum = 0
         for ind, points in enumerate(data):
             sum += points
@@ -105,8 +143,10 @@ class AprilTagDetector: # Given
     
     def initGraph(self):
         _, ax = plt.subplots()
-        graph = ax.plot([],[],'go')[0]
-        graph2 = ax.plot([],[], markersize=15, color='red')[0]
+        # graph = ax.plot([],[],'go')[0]
+        graph = patches.Circle((0, 0), radius=self.boxWidth)
+        ax.add_patch(graph)
+        # graph2 = ax.plot([],[], markersize=15, color='red')[0]
         ax.set(xlim=[-2, 2],ylim=[0, 2])
         
-        return graph, graph2
+        return graph
