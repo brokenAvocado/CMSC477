@@ -16,6 +16,71 @@ class Detector:
     def __init__(self):
         return
     
+
+    def get_cones_simple(self, model, frame):
+        # Grayscaling
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray_bgr = cv2.cvtColor(gray_frame, cv2.COLOR_GRAY2BGR)
+
+        # Process through model
+        if model.predictor:
+            model.predictor.args.verbose = False
+        result = model.predict(source=gray_bgr, show=False)[0]
+
+        boxes = result.boxes
+        for box in boxes:
+            xyxy = box.xyxy.cpu().numpy().flatten()
+            cv2.rectangle(frame,
+                          (int(xyxy[0]), int(xyxy[1])), 
+                          (int(xyxy[2]), int(xyxy[3])),
+                           color=(0, 0, 255), thickness=2)
+            
+        cv2.imshow('frame', frame)
+
+    def get_cones_no_merge(self, model, frame):
+        # Grayscaling
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray_bgr = cv2.cvtColor(gray_frame, cv2.COLOR_GRAY2BGR)
+
+        # Process through model
+        if model.predictor:
+            model.predictor.args.verbose = False
+        result = model.predict(source=gray_bgr, show=False)[0]
+
+        # Get raw boxes
+        boxes = result.boxes
+        raw_boxes = [box.xyxy.cpu().numpy().astype(int).flatten() for box in boxes]
+
+        # === Orange Pixel Filtering ===
+        hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+        # Define HSV range for orange (can be tuned)
+        lower_orange = np.array([3, 45, 160])
+        upper_orange = np.array([12, 255, 255])
+
+        final_boxes = []
+        for box in raw_boxes:
+            x1, y1, x2, y2 = box
+            x1, y1 = max(0, x1), max(0, y1)
+            x2, y2 = min(frame.shape[1], x2), min(frame.shape[0], y2)
+
+            roi = hsv_frame[y1:y2, x1:x2]
+            mask = cv2.inRange(roi, lower_orange, upper_orange)
+            orange_pixel_count = cv2.countNonZero(mask)
+
+            if orange_pixel_count > 20:  # Threshold (tune as needed)
+                final_boxes.append(box)
+
+        # Get and sort box centers
+        box_centers = []
+        for box in final_boxes:
+            x1, y1, x2, y2 = box
+            box_centers.append(((x1 + x2) / 2, (y1 + y2) / 2))
+
+        box_centers_sorted = sorted(box_centers, key=lambda x: x[0])
+        return final_boxes, box_centers_sorted
+
+    # Processing Functions #
     def get_cones(self, model, frame):
         # Grayscaling
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -28,7 +93,7 @@ class Detector:
 
         # Find and merge boxes
         boxes = result.boxes
-        threshold = 20
+        threshold = 5 # Euclidean Distance to merge
         raw_boxes = [box.xyxy.cpu().numpy().flatten() for box in boxes]
         centers = [((b[0] + b[2]) / 2, (b[1] + b[3]) / 2) for b in raw_boxes]
 
@@ -53,8 +118,8 @@ class Detector:
         hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
         # Define HSV range for orange (can be tuned)
-        lower_orange = np.array([5, 45, 160])
-        upper_orange = np.array([10, 255, 255])
+        lower_orange = np.array([3, 45, 160])
+        upper_orange = np.array([12, 255, 255])
 
         final_boxes = []
         for box in merged_boxes:
@@ -77,16 +142,8 @@ class Detector:
 
         box_centers_sorted = sorted(box_centers, key=lambda x: x[0])
         return final_boxes, box_centers_sorted
+    
 
-    def draw_lines_between_pairs(self, frame, box_centers):
-        # Convert to integer pixel coords
-        points = [tuple(map(int, pt)) for pt in box_centers]
-
-        # Draw lines between successive pairs
-        for i in range(len(points) - 1):
-            cv2.line(frame, points[i], points[i + 1], color=(0, 255, 0), thickness=2)
-
-        return frame
     
     def group_slopes(self, box_centers, slope_threshold=0.1):
         if len(box_centers) < 2:
@@ -148,11 +205,34 @@ class Detector:
         group2 = [tuple(points[i]) for i in sorted(group2_idx)]
 
         return group1, group2
+    
+    def get_corners(self, group1, group2):
+        corners = list(set(group1) & set(group2))
+        return corners
+    
 
+    # Draw Functions #
+    def draw_lines_between_pairs(self, frame, box_centers):
+        # Convert to integer pixel coords
+        points = [tuple(map(int, pt)) for pt in box_centers]
+
+        # Draw lines between successive pairs
+        for i in range(len(points) - 1):
+            cv2.line(frame, points[i], points[i + 1], color=(0, 255, 0), thickness=2)
+
+        return frame
+
+    def draw_cone_corners(self, frame, corners):
+        for corner in corners:
+            x, y = int(corner[0]), int(corner[1])
+            cv2.circle(frame, (x, y), radius=10, color=(255, 0, 0), thickness=2)
+
+
+# Test Control Loop #
 def main():
     test = Detector()
 
-    video_path = "video_0.mp4"
+    video_path = "video_2.mp4"
 
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -173,23 +253,19 @@ def main():
         if frame is None:
             continue
 
-        boxes, box_centers = test.get_cones(model, frame)
+        boxes, box_centers = test.get_cones_no_merge(model, frame)
 
         for box in boxes:
             x1, y1, x2, y2 = box
             cv2.rectangle(frame, (x1, y1), (x2, y2), color=(0, 0, 255), thickness=2)
 
-        test.draw_lines_between_pairs(frame, box_centers)
+        # test.draw_lines_between_pairs(frame, box_centers)
 
-        group1, group2 = test.group_slopes(box_centers)
+        # group1, group2 = test.group_slopes(box_centers)
 
-        print(f"Group 1: {group1} \nGroup 2: {group2}")
+        # corners = test.get_corners(group1, group2)
 
-        corner = list(set(group1) & set(group2))
-
-        for pt in corner:
-            x, y = int(pt[0]), int(pt[1])
-            cv2.circle(frame, (x, y), radius=10, color=(255, 0, 0), thickness=2)
+        # test.draw_cone_corners(frame, corners)
 
         # Display Capture
         cv2.imshow("YOLO Detection on Grayscale Video", frame)
