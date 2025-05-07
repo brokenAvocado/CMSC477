@@ -655,7 +655,7 @@ def main():
     #test.laptop_cam()
     #test.combine_and_rename_images(["robot_brick1", "robot_brick2", "robot_brick3", "robot_brick4"])
     #test.run_model_on_video("video_0.mp4")
-    #test.run_model_on_video_gray("video_0.mp4")
+    test.run_model_on_video_gray("video_0.mp4")
     #test.augment_images()
     #test.to_gray()
 
