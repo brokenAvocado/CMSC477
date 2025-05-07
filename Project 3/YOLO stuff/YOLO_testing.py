@@ -649,13 +649,13 @@ class YOLO_tester:
 
 def main():
     test = YOLO_tester()
-    test.collect_images_robot()
+    # test.collect_images_robot()
     #test.collect_video_robot()
     #test.split()
     #test.laptop_cam()
-    #test.combine_and_rename_images(["robot_brick1", "robot_brick2", "robot_brick3", "robot_brick4"])
+    test.combine_and_rename_images(["robot_corridor_images0", "robot_corridor_images1", "robot_corridor_images2", "robot_corridor_images3", "robot_corridor_images4"])
     #test.run_model_on_video("video_0.mp4")
-    test.run_model_on_video_gray("video_0.mp4")
+    # test.run_model_on_video_gray("video_0.mp4")
     #test.augment_images()
     #test.to_gray()
 
