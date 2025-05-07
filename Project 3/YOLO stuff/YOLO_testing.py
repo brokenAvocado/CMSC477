@@ -173,7 +173,7 @@ class YOLO_tester:
         os.makedirs(save_path, exist_ok=True)
 
         # Start video stream
-        ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
+        ep_camera.start_video_stream(display=False, resolution=camera.STREAM_720P)
 
         print("Press 'm' to toggle video recording. Press 'q' to quit.")
 
@@ -192,27 +192,26 @@ class YOLO_tester:
         ARM_STEP = 10  # degrees per press
 
         while True:
-            move_speed = 0.3
-            rotate_speed = 45
-            # print("Use W/A/S/D to move, Q/E to rotate, Up/Down to control arm. ESC to quit.")
             if keyboard.is_pressed("w"):
-                self.ep_chassis.drive_speed(x=move_speed, timeout=0.1)
+                ep_chassis.move(x=MOVE_DIST, y=0, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
             elif keyboard.is_pressed("s"):
-                self.ep_chassis.drive_speed(x=-move_speed, timeout=0.1)
-            # else:
-            #     self.ep_chassis.drive_speed(x=0, timeout=0.1)
-
+                ep_chassis.move(x=-MOVE_DIST, y=0, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
             elif keyboard.is_pressed("a"):
-                self.ep_chassis.drive_speed(y=-move_speed, timeout=0.1)
+                ep_chassis.move(x=0, y=-MOVE_DIST, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
             elif keyboard.is_pressed("d"):
-                self.ep_chassis.drive_speed(y=move_speed, timeout=0.1)
-            # else:
-            #     self.ep_chassis.drive_speed(y=0, timeout=0.1)
-
+                ep_chassis.move(x=0, y=MOVE_DIST, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
             elif keyboard.is_pressed("q"):
-                self.ep_chassis.drive_speed(z=-rotate_speed, timeout=0.1)
+                ep_chassis.move(x=0, y=0, z=ROTATE_ANGLE, z_speed=ROTATE_SPEED).wait_for_completed()
             elif keyboard.is_pressed("e"):
-                self.ep_chassis.drive_speed(z=rotate_speed, timeout=0.1)
+                ep_chassis.move(x=0, y=0, z=-ROTATE_ANGLE, z_speed=ROTATE_SPEED).wait_for_completed()
+            elif keyboard.is_pressed("up"):
+                ep_robot.gripper.move(arm=-ARM_STEP).wait_for_completed()  # Replace with correct API
+            elif keyboard.is_pressed("down"):
+                ep_robot.gripper.move(arm=ARM_STEP).wait_for_completed()   # Replace with correct API
+            elif keyboard.is_pressed("esc"):
+                print("Exiting control...")
+                break
+            time.sleep(0.01)
 
             try:
                 img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
@@ -650,10 +649,10 @@ class YOLO_tester:
 def main():
     test = YOLO_tester()
     # test.collect_images_robot()
-    #test.collect_video_robot()
+    test.collect_video_robot()
     #test.split()
     #test.laptop_cam()
-    test.combine_and_rename_images(["robot_corridor_images0", "robot_corridor_images1", "robot_corridor_images2", "robot_corridor_images3", "robot_corridor_images4"])
+    # test.combine_and_rename_images(["robot_corridor_images0", "robot_corridor_images1", "robot_corridor_images2", "robot_corridor_images3", "robot_corridor_images4"])
     #test.run_model_on_video("video_0.mp4")
     # test.run_model_on_video_gray("video_0.mp4")
     #test.augment_images()
