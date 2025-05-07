@@ -59,7 +59,7 @@ class AprilTagDetector: # Given
         '''
         for detection in detections:
             if not(detection in self.detectedTags) and len(self.detectedTags) > 0:
-                
+                None
             else:
                 self.detectedTags.append(detection)
 

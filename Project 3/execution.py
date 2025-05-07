@@ -82,7 +82,8 @@ if __name__ == "__main__":
     apriltag = AprilTagDetector()
 
     try:
-        doarmstuff()
+        while True:
+            robo.teleop()
     except KeyboardInterrupt:
         pass
     except Exception as e:

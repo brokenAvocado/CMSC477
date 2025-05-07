@@ -3,12 +3,14 @@ import os
 import random
 import shutil
 import time
-from ultralytics import YOLO
+import keyboard
 from queue import Empty
 import shutil
 import re
 import numpy as np
 from itertools import combinations
+from robomaster import robot
+from robomaster import camera
 
 class YOLO_tester:
     def __init__(self):
@@ -84,7 +86,7 @@ class YOLO_tester:
         os.makedirs(save_path, exist_ok=True)
 
         # Start video capture (0 = default camera)
-        ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
+        ep_camera.start_video_stream(display=False, resolution=camera.STREAM_720P)
 
         print("Press 'm' to capture an image. Press 'q' to quit.")
 
@@ -190,26 +192,27 @@ class YOLO_tester:
         ARM_STEP = 10  # degrees per press
 
         while True:
+            move_speed = 0.3
+            rotate_speed = 45
+            # print("Use W/A/S/D to move, Q/E to rotate, Up/Down to control arm. ESC to quit.")
             if keyboard.is_pressed("w"):
-                ep_chassis.move(x=MOVE_DIST, y=0, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
+                self.ep_chassis.drive_speed(x=move_speed, timeout=0.1)
             elif keyboard.is_pressed("s"):
-                ep_chassis.move(x=-MOVE_DIST, y=0, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
+                self.ep_chassis.drive_speed(x=-move_speed, timeout=0.1)
+            # else:
+            #     self.ep_chassis.drive_speed(x=0, timeout=0.1)
+
             elif keyboard.is_pressed("a"):
-                ep_chassis.move(x=0, y=-MOVE_DIST, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
+                self.ep_chassis.drive_speed(y=-move_speed, timeout=0.1)
             elif keyboard.is_pressed("d"):
-                ep_chassis.move(x=0, y=MOVE_DIST, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
+                self.ep_chassis.drive_speed(y=move_speed, timeout=0.1)
+            # else:
+            #     self.ep_chassis.drive_speed(y=0, timeout=0.1)
+
             elif keyboard.is_pressed("q"):
-                ep_chassis.move(x=0, y=0, z=ROTATE_ANGLE, z_speed=ROTATE_SPEED).wait_for_completed()
+                self.ep_chassis.drive_speed(z=-rotate_speed, timeout=0.1)
             elif keyboard.is_pressed("e"):
-                ep_chassis.move(x=0, y=0, z=-ROTATE_ANGLE, z_speed=ROTATE_SPEED).wait_for_completed()
-            elif keyboard.is_pressed("up"):
-                ep_robot.gripper.move(arm=-ARM_STEP).wait_for_completed()  # Replace with correct API
-            elif keyboard.is_pressed("down"):
-                ep_robot.gripper.move(arm=ARM_STEP).wait_for_completed()   # Replace with correct API
-            elif keyboard.is_pressed("esc"):
-                print("Exiting control...")
-                break
-            time.sleep(0.01)
+                self.ep_chassis.drive_speed(z=rotate_speed, timeout=0.1)
 
             try:
                 img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
@@ -312,7 +315,8 @@ class YOLO_tester:
 
     def laptop_cam(self):
         print('model')
-        model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\YOLO stuff\\Red_Green Testing\\train1\\weights\\best.pt")
+        model = None
+        # model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\YOLO stuff\\Red_Green Testing\\train1\\weights\\best.pt")
 
 
         # Use vid instead of ep_camera to use your laptop's webcam
@@ -357,7 +361,8 @@ class YOLO_tester:
 
     def run_model_on_video(self, video_path):
         print('Loading model...')
-        model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\YOLO stuff\\Robot_Cones_Detection_Gray\\train8\\weights\\best.pt")
+        model = None
+        # model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\YOLO stuff\\Robot_Cones_Detection_Gray\\train8\\weights\\best.pt")
 
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
@@ -444,7 +449,8 @@ class YOLO_tester:
 
     def run_model_on_video_gray(self, video_path):
         print('Loading model...')
-        model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\YOLO stuff\\Robot_Cones_Detection_Gray\\train10\\weights\\best.pt")
+        model = None
+        # model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\YOLO stuff\\Robot_Cones_Detection_Gray\\train10\\weights\\best.pt")
 
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
@@ -643,6 +649,7 @@ class YOLO_tester:
 
 def main():
     test = YOLO_tester()
+    test.collect_images_robot()
     #test.collect_video_robot()
     #test.split()
     #test.laptop_cam()

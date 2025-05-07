@@ -108,9 +108,9 @@ class motion:
         #     self.ep_chassis.drive_speed(y=0, timeout=0.1)
 
         elif keyboard.is_pressed("q"):
-            self.ep_chassis.drive_speed(z=rotate_speed, timeout=0.1)
-        elif keyboard.is_pressed("e"):
             self.ep_chassis.drive_speed(z=-rotate_speed, timeout=0.1)
+        elif keyboard.is_pressed("e"):
+            self.ep_chassis.drive_speed(z=rotate_speed, timeout=0.1)
         # else:
         #     self.ep_chassis.drive_speed(z=0, timeout=0.1)
         # elif keyboard.is_pressed("up"):
