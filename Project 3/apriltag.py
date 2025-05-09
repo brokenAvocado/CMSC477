@@ -26,7 +26,13 @@ class AprilTagDetector: # Given
             camera_params=self.camera_params, tag_size=self.marker_size_m)
         return detections
     
-    def filterDupes(self, detections, tol=0.1):
+    def init_tags(self, detections):
+        '''
+        At the beginning, robot's orientation is known and the tags it sees 
+        will be tracked at their global orientation 
+        '''
+    
+    def refine_tags(self, detections, robot_global_pose, tol=0.1):
         '''
         Using positional data, will detect if the tag is a new tag and will check if it's
         a tag from a box the robot has seen before
@@ -38,7 +44,7 @@ class AprilTagDetector: # Given
             if not tag.tag_id in self.seenTags: # For tags that are seen for the first time
                 self.seenTags.append(tag.tag_id)
 
-                x,y = self.get_global_pos(tag, PLACEHOLDER)
+                x,y = self.get_global_pos(tag, robot_global_pose)
                 pose = np.array([x, y])
 
                 if self.obstacles: # Check if not empty
@@ -72,7 +78,7 @@ class AprilTagDetector: # Given
         t_ca[2] = t_ca[2]+self.boxWidth/2*np.cos(yaw)
         t_ca[0] = t_ca[0]+self.boxWidth/2*np.sin(yaw)
 
-        return t_ca, rotation
+        return np.array(t_ca), np.array(rotation)
     
     def get_global_pos(self, detection, robot_global_pose):
         '''
@@ -81,6 +87,13 @@ class AprilTagDetector: # Given
         Uses robot global position + orientation, then tacks on the
         obstacle's position + orientation to get the global information
         '''
+
+        pos, rot = self.get_relative_pos(detection)
+        global_pos = robot_global_pose[0]
+        global_rot = robot_global_pose[1]
+
+        return pos+global_pos, global_rot
+        
     
     def movingAverage(self, data, window):
         '''
@@ -92,7 +105,7 @@ class AprilTagDetector: # Given
             if ind >= window:
                 return sum/window
 
-    def closest(self,detections):
+    def closest(self, detections):
         closestDist = float('inf')
         closestTag = 0
 

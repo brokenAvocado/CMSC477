@@ -20,3 +20,9 @@ Sub-Objectives:
 
     - Keep track of object positions
         [finding the center of boxes, filling a dictionary]
+
+To-do (functions):
+    - Box averaging script (takes in new detections, relates them to old)
+    - Recalibrate global position of the robot based on the robot's scan of boxes
+    - Recalibrate the new box positions
+    - Visual servo-ing based on where the boxes are 
