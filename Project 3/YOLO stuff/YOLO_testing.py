@@ -102,26 +102,26 @@ class YOLO_tester:
         ARM_STEP = 10  # degrees per press
 
         while True:
-            if keyboard.is_pressed("w"):
-                ep_chassis.move(x=MOVE_DIST, y=0, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
-            elif keyboard.is_pressed("s"):
-                ep_chassis.move(x=-MOVE_DIST, y=0, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
-            elif keyboard.is_pressed("a"):
-                ep_chassis.move(x=0, y=-MOVE_DIST, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
-            elif keyboard.is_pressed("d"):
-                ep_chassis.move(x=0, y=MOVE_DIST, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
-            elif keyboard.is_pressed("q"):
-                ep_chassis.move(x=0, y=0, z=ROTATE_ANGLE, z_speed=ROTATE_SPEED).wait_for_completed()
-            elif keyboard.is_pressed("e"):
-                ep_chassis.move(x=0, y=0, z=-ROTATE_ANGLE, z_speed=ROTATE_SPEED).wait_for_completed()
-            elif keyboard.is_pressed("up"):
-                ep_robot.gripper.move(arm=-ARM_STEP).wait_for_completed()  # Replace with correct API
-            elif keyboard.is_pressed("down"):
-                ep_robot.gripper.move(arm=ARM_STEP).wait_for_completed()   # Replace with correct API
-            elif keyboard.is_pressed("esc"):
-                print("Exiting control...")
-                break
-            time.sleep(0.01)
+            # if keyboard.is_pressed("w"):
+            #     ep_chassis.move(x=MOVE_DIST, y=0, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
+            # elif keyboard.is_pressed("s"):
+            #     ep_chassis.move(x=-MOVE_DIST, y=0, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
+            # elif keyboard.is_pressed("a"):
+            #     ep_chassis.move(x=0, y=-MOVE_DIST, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
+            # elif keyboard.is_pressed("d"):
+            #     ep_chassis.move(x=0, y=MOVE_DIST, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
+            # elif keyboard.is_pressed("q"):
+            #     ep_chassis.move(x=0, y=0, z=ROTATE_ANGLE, z_speed=ROTATE_SPEED).wait_for_completed()
+            # elif keyboard.is_pressed("e"):
+            #     ep_chassis.move(x=0, y=0, z=-ROTATE_ANGLE, z_speed=ROTATE_SPEED).wait_for_completed()
+            # elif keyboard.is_pressed("up"):
+            #     ep_robot.gripper.move(arm=-ARM_STEP).wait_for_completed()  # Replace with correct API
+            # elif keyboard.is_pressed("down"):
+            #     ep_robot.gripper.move(arm=ARM_STEP).wait_for_completed()   # Replace with correct API
+            # elif keyboard.is_pressed("esc"):
+            #     print("Exiting control...")
+            #     break
+            # time.sleep(0.01)
 
             try:
                 img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
@@ -648,15 +648,15 @@ class YOLO_tester:
 
 def main():
     test = YOLO_tester()
-    # test.collect_images_robot()
-    #test.collect_video_robot()
+    test.collect_images_robot()
+    # test.collect_video_robot()
     #test.split()
     #test.laptop_cam()
     # test.combine_and_rename_images(["robot_corridor_images0", "robot_corridor_images1", "robot_corridor_images2", "robot_corridor_images3", "robot_corridor_images4"])
     #test.run_model_on_video("video_0.mp4")
     # test.run_model_on_video_gray("video_0.mp4")
     #test.augment_images()
-    test.to_gray()
+    # test.to_gray()
 
 if __name__ == "__main__":
     main()

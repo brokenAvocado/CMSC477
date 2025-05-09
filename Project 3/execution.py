@@ -50,6 +50,36 @@ def test_aprilTagRelative():
         if cv2.waitKey(1) == ord('z'):
             break
 
+def test_aprilTagGlobal():
+    '''
+    Get global positioning of AprilTags and represent them graphically
+    '''
+    robo.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
+    graph = apriltag.initGraph()
+    while True:
+        try:
+            img = robo.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
+        except Empty:
+            time.sleep(0.001)
+            continue
+        
+        # robo.teleop()
+
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        gray.astype(np.uint8)
+        detections = apriltag.find_tags(gray)
+        apriltag.draw_detections(img, detections)
+
+        if len(detections) > 0:
+            apriltag.refine_tags(detections, [0,0,0])
+            apriltag.plot_detections(None, graph)
+
+        # Display the captured frame
+        cv2.imshow('Camera', img)
+
+        if cv2.waitKey(1) == ord('q'):
+            break
+
 def show_camera_feed():
     robo.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
     while True:
@@ -83,7 +113,7 @@ if __name__ == "__main__":
 
     try:
         while True:
-            robo.teleop()
+            test_aprilTagGlobal()
     except KeyboardInterrupt:
         pass
     except Exception as e:
