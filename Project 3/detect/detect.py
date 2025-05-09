@@ -240,7 +240,7 @@ def main():
         return
 
     print('Loading model...')
-    model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\detect\\cones_model\\weights\\best.pt")
+    model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\detect\\train11\\weights\\best.pt")
 
     while True:
         # Get next frame
