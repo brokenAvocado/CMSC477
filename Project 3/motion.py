@@ -26,20 +26,45 @@ class motion:
         # Camera Init
         self.ep_camera = self.ep_robot.camera
 
-        # State Init
+        # Arm State Init
         self.stowed = True
         self.gripper = 'opened'
 
+        # Robot State Init
+        self.globalPose = [0,0,0]
+        self.yawOffset = 0
+        self.yawInit = False
+
+    def updatePosition(self, pos_info):
+        x, y, z = pos_info
+        self.globalPose[0] = x*np.cos(np.pi/180*self.yawOffset) - y*np.sin(np.pi/180*self.yawOffset)
+        self.globalPose[1] = -(y*np.cos(np.pi/180*self.yawOffset) + x*np.sin(np.pi/180*self.yawOffset))
+        
+    def updateRotation(self, rot_info):
+        yaw, _, _= rot_info
+        if not self.yawInit:
+            self.yawOffset = -yaw
+            self.yawInit = True    
+        self.globalPose[2] = -yaw - self.yawOffset - 90
+            
     def printStatement(self,pos_info):
         x, y, z = pos_info
         print(f"Pos X: {x} Pos Y: {y} Pos Z: {z}")
 
     def get_robotPosition(self):
         '''
+        PUT THIS OUTSIDE WHILE LOOP
         Gets the relative position of the robot based on where it started
         '''
+        self.ep_chassis.sub_position(freq = 10, callback = self.updatePosition)
 
-        self.ep_chassis.sub_position(freq = 5, callback = self.printStatement)
+    def get_robotAngle(self):
+        '''
+        PUT THIS OUTSIDE WHILE LOOP
+        Gets the relative attitude of the robot based on where it started
+        '''
+        self.ep_chassis.sub_attitude(freq = 10, callback = self.updateRotation)
+
 
     def get_arm_position(self):
         self.ep_arm.sub_position(freq=5, callback=self.arm_position_callback)

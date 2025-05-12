@@ -55,7 +55,10 @@ def test_aprilTagGlobal():
     Get global positioning of AprilTags and represent them graphically
     '''
     robo.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
-    graph = apriltag.initGraph()
+    graph1, graph2 = apriltag.initGraph()
+    robo.get_robotPosition()
+    robo.get_robotAngle()
+
     while True:
         try:
             img = robo.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
@@ -63,7 +66,7 @@ def test_aprilTagGlobal():
             time.sleep(0.001)
             continue
         
-        # robo.teleop()
+        robo.teleop()
 
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         gray.astype(np.uint8)
@@ -71,14 +74,16 @@ def test_aprilTagGlobal():
         apriltag.draw_detections(img, detections)
 
         if len(detections) > 0:
-            apriltag.refine_tags(detections, [0,0,0])
+            apriltag.refine_tags(detections, robo.globalPose, 0.1)
             apriltag.troubleshoot()
-            apriltag.plot_detections(None, graph)
+            # print(robo.globalPose)
+
+        apriltag.plot_detections(robo.globalPose, graph1, graph2)
 
         # Display the captured frame
         cv2.imshow('Camera', img)
 
-        if cv2.waitKey(1) == ord('q'):
+        if cv2.waitKey(1) == ord('z'):
             break
 
 def show_camera_feed():

@@ -19,7 +19,7 @@ class AprilTagDetector: # Given
         self.obstacles = {}
 
     def troubleshoot(self):
-        print(f"Seen tags: {self.seenTags}, Obstacles: {self.obstacles.values()}")
+        print(f"Seen tags: {self.seenTags}, Obstacles: {self.obstacles}")
 
     def find_tags(self, frame_gray):
         '''
@@ -62,6 +62,9 @@ class AprilTagDetector: # Given
 
         Position is at the predicted center of the box (using the orientation 
             vector and the box width)
+
+        The axis of the robot is relatively: x = side to side (right is positive),
+        y = front and back (forwards is positive)
         '''
         R_ca = detection.pose_R
         t_ca = detection.pose_t
@@ -88,19 +91,18 @@ class AprilTagDetector: # Given
         Uses robot global position + orientation, then tacks on the
         obstacle's position + orientation to get the global information
         '''
-
         pose = self.get_box_relative(detection)
         box_posX = pose[0]
         box_posY = pose[1]
-        box_rot = np.arctan2(box_posY, box_posX)
+        box_rot = 180/np.pi*np.arctan2(box_posX, box_posY)
         global_posX = robot_global_pose[0]
         global_posY = robot_global_pose[1]
         global_rot = robot_global_pose[2]
 
         box_g_rot = box_rot-global_rot
         box_dist = (box_posX**2+box_posY**2)**0.5
-        final_posX = global_posX + box_dist*np.sin(box_g_rot)
-        final_posY = global_posY + box_dist*np.cos(box_g_rot)
+        final_posX = global_posX + box_dist*np.sin(np.pi/180*box_g_rot)
+        final_posY = global_posY + box_dist*np.cos(np.pi/180*box_g_rot)
 
         return [final_posX, final_posY]
     
@@ -146,10 +148,10 @@ class AprilTagDetector: # Given
         graph = ax.plot([],[],'go')[0]
         # graph = patches.Circle((0, 0), radius=self.boxWidth)
         # ax.add_patch(graph)
-        graph2 = ax.plot([],[], markersize=15, color='red')[0]
-        ax.set(xlim=[-1, 1],ylim=[-1, 1])
+        graph2 = ax.plot([],[], 'o', markersize=15, color='red')[0]
+        ax.set(xlim=[-1, 5] ,ylim=[-1, 10])
         
-        return graph
+        return graph, graph2
     
     def draw_detections(self, frame, detections): # Given
         '''
@@ -167,7 +169,7 @@ class AprilTagDetector: # Given
             cv2.line(frame, top_left, bottom_right, color=(0, 0, 255), thickness=2)
             cv2.line(frame, top_right, bottom_left, color=(0, 0, 255), thickness=2)
     
-    def plot_detections(self, detections, graph):
+    def plot_detections(self, roboPose, graph1, graph2):
         '''
         (Visualization)
         Need to run initGraph for this to work
@@ -184,15 +186,13 @@ class AprilTagDetector: # Given
             plot_x.append(pos[0])
             plot_y.append(pos[1])
 
-        # Plot vector for closest tag
-        # if not(closeTag is None):
-        #     quiver.set_xdata([pos[0], pos[0]-amp*np.sin(rot[1])])
-        #     quiver.set_ydata([pos[2], pos[2]-amp*np.cos(rot[1])])
-
         # set the x and y data
         # graph.center = plot_x, plot_y
-        graph.set_xdata(plot_x)
-        graph.set_ydata(plot_y)
+        graph1.set_xdata(plot_x)
+        graph1.set_ydata(plot_y)
+
+        graph2.set_xdata(roboPose[0])
+        graph2.set_ydata(roboPose[1])
 
         # for i, label in enumerate(labels):
         #     plt.text(plot_x[i], plot_y[i], label, ha='center', va='bottom')
