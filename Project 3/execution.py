@@ -72,6 +72,7 @@ def test_aprilTagGlobal():
 
         if len(detections) > 0:
             apriltag.refine_tags(detections, [0,0,0])
+            apriltag.troubleshoot()
             apriltag.plot_detections(None, graph)
 
         # Display the captured frame

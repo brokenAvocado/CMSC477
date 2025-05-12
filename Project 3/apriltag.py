@@ -18,6 +18,9 @@ class AprilTagDetector: # Given
         self.seenTags = []
         self.obstacles = {}
 
+    def troubleshoot(self):
+        print(f"Seen tags: {self.seenTags}, Obstacles: {self.obstacles.values()}")
+
     def find_tags(self, frame_gray):
         '''
         Finds any and all tags in camera frame
