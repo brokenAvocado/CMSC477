@@ -1,0 +1,5 @@
+path: C:/Users/Trevor/Documents/Python Scripts/CMSC477/Project 3/YOLO stuff/Robot_Brick_Detection/datasets/
+train: robot_brick_images_train
+val: robot_brick_images_validation
+nc: 3  # Number of classes (1 for only "object")
+names: ["small", "medium", "large"]
