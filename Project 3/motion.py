@@ -34,6 +34,13 @@ class motion:
         self.globalPose = [0,0,0]
         self.yawOffset = 0
         self.yawInit = False
+        self.orientationSet = False
+
+        self.target_x = 0 # deprecated
+        self.target_y = 0 # deprecated
+        self.target_z = 0 # deprecated
+
+
 
     def updatePosition(self, pos_info):
         x, y, z = pos_info
@@ -46,6 +53,7 @@ class motion:
             self.yawOffset = -yaw
             self.yawInit = True    
         self.globalPose[2] = -yaw - self.yawOffset - 90
+        # print(f"Raw yaw: {yaw}")
             
     def printStatement(self,pos_info):
         x, y, z = pos_info
@@ -64,7 +72,6 @@ class motion:
         Gets the relative attitude of the robot based on where it started
         '''
         self.ep_chassis.sub_attitude(freq = 10, callback = self.updateRotation)
-
 
     def get_arm_position(self):
         self.ep_arm.sub_position(freq=5, callback=self.arm_position_callback)
@@ -110,10 +117,61 @@ class motion:
     def release(self):
         self.ep_gripper.open(100)
 
-    def orbit(self, velx=0, vely=0, velz=0):
-        # self.ep_chassis.drive_speed(x=velx, y=vely, z=velz, timeout = 0.02)
-        self.ep_chassis.move(x=0, y=0, z=15, z_speed=45).wait_for_completed()
+    def go_to(self, target_x, target_y):
+        '''
+        Takes global x and y target positions and converts it to relative
+        kinematic commands
+        '''
+        current_x = self.globalPose[0]
+        current_y = self.globalPose[1]
 
+        dist_x = target_x-current_x
+        dist_y = target_y-current_y
+
+        self.target_z = 180/np.pi*np.arctan2(dist_x,dist_y)
+        if dist_y == 0 and dist_x > 0:
+            self.target_z = -90
+        elif dist_y == 0 and dist_x > 0:
+            self.target_z = 90
+        else:
+            if dist_x > -0.1:
+                self.target_z = -self.target_z 
+
+        x_mult = 0.2
+        y_mult = .5
+        
+        dist_rel = ((dist_x)**2+(dist_y)**2)**0.5
+        vel_z = self.rotate_to(self.target_z)
+        vel_x = x_mult*dist_rel
+
+        print(f"Goal :  {dist_x},{dist_y},{self.target_z}, Current : {self.globalPose[2]}")
+
+        self.ep_chassis.drive_speed(x=vel_x, y=0, z=vel_z, timeout=0.1)
+
+        if abs(dist_rel) < 0.1:
+            vel_x = 0
+            return True
+        else:
+            return False
+        
+    def sequence(self, targets):
+        pos = targets[0]
+        moveOn = self.go_to(pos[0], pos[1])
+        if moveOn:
+            targets.pop(0)
+        return targets
+
+    def rotate_to(self, target_z, rotate_tol = 0.3, speedMult = 0.05, direction = -1):
+        '''
+        Takes global orientation angle and will point in that direction
+        '''
+        if abs(target_z-self.globalPose[2]) > rotate_tol:
+            if target_z-self.globalPose[2] < 0:
+                direction = 1
+            return direction*speedMult*(target_z-self.globalPose[2])**2
+        else:
+            return 0
+            
     def teleop(self):
         move_speed = 0.3
         rotate_speed = 45

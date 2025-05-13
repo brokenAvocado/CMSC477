@@ -18,6 +18,8 @@ def shutdown():
     Sequence for stopping the robot 
     '''
     robo.ep_arm.unsub_position()
+    robo.ep_chassis.unsub_attitude()
+    robo.ep_chassis.unsub_position()
     print('Waiting for robomaster shutdown')
     robo.ep_camera.stop_video_stream()
     robo.ep_robot.close()
@@ -76,7 +78,43 @@ def test_aprilTagGlobal():
         if len(detections) > 0:
             apriltag.refine_tags(detections, robo.globalPose, 0.1)
             apriltag.troubleshoot()
-            # print(robo.globalPose)
+
+        apriltag.plot_detections(robo.globalPose, graph1, graph2)
+
+        # Display the captured frame
+        cv2.imshow('Camera', img)
+
+        if cv2.waitKey(1) == ord('z'):
+            break
+
+def test_smoothMotion():
+    '''
+    Get global positioning of AprilTags and represent them graphically
+    '''
+    robo.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
+    graph1, graph2 = apriltag.initGraph()
+    robo.get_robotPosition()
+    robo.get_robotAngle()
+    targets = [[0, 1],[1, 1],[1, 0],[0, 0]]
+
+    while True:
+        try:
+            img = robo.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
+        except Empty:
+            time.sleep(0.001)
+            continue
+        
+        targets = robo.sequence(targets)
+        print(targets)
+
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        gray.astype(np.uint8)
+        detections = apriltag.find_tags(gray)
+        apriltag.draw_detections(img, detections)
+
+        if len(detections) > 0:
+            apriltag.refine_tags(detections, robo.globalPose, 0.1)
+            # apriltag.troubleshoot()
 
         apriltag.plot_detections(robo.globalPose, graph1, graph2)
 
@@ -119,7 +157,7 @@ if __name__ == "__main__":
 
     try:
         while True:
-            test_aprilTagGlobal()
+            test_smoothMotion()
     except KeyboardInterrupt:
         pass
     except Exception as e:
