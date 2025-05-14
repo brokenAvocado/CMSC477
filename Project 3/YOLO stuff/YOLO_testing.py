@@ -17,6 +17,8 @@ from robomaster import camera
 
 class YOLO_tester:
     def __init__(self):
+        robomaster.config.ROBOT_IP_STR = "192.168.50.121"
+
         self.robot = robot.Robot()
         self.robot.initialize(conn_type="sta", sn="3JKCH8800100UB")
         return
@@ -656,11 +658,6 @@ class YOLO_tester:
         print('Loading model...')
         model = YOLO("C:\\Users\\ninja\\Documents\\College\\CMSC477\\Project 3\\YOLO stuff\\Robot_Closet_Brick_Detection\\train15\\weights\\best.pt")
 
-        # Initialize robot and camera if not already done
-        if not hasattr(self, 'robot'):
-            self.robot = robot.Robot()
-            self.robot.initialize(conn_type="sta")
-
         ep_camera = self.robot.camera
         ep_camera.start_video_stream(display=False, resolution=camera.STREAM_720P)
 
@@ -673,9 +670,10 @@ class YOLO_tester:
         print("Press 'q' to quit.")
         while True:
             # Get frame from RoboMaster camera
-            frame = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
-            if frame is None:
-                print("Failed to grab frame.")
+            try:
+                frame = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
+            except Empty:
+                time.sleep(0.001)
                 continue
 
             if model.predictor:
@@ -701,8 +699,9 @@ class YOLO_tester:
                 cy = (closest[1] + closest[3]) // 2
                 cv2.circle(frame, (cx, cy), 10, (255, 0, 255), 2)  # Purple circle
 
-                # self.align_to_brick(cx, frame.shape[1])
-                # self.approach(cy, frame.shape[0])
+                aligned = self.align_to_brick(cx, frame.shape[1])
+                if aligned:
+                    self.approach(cy, frame.shape[0])
 
             # Show annotated frame
             cv2.imshow("YOLO Live Detection", frame)
@@ -737,32 +736,34 @@ class YOLO_tester:
 
         return closest
 
-    def align_to_brick(self, cx, frame_width, threshold=40):
+    def align_to_brick(self, cx, frame_width, threshold=10):
         center_x = frame_width // 2
         offset = cx - center_x
 
         if abs(offset) < threshold:
             print("Brick is centered.")
-            return  # No turn needed
+            return True# No turn needed
 
         # Initialize robot connection once
         chassis = self.robot.chassis
 
         if offset < 0:
             print("Brick is left — turning left")
-            chassis.rotate(angle=-5)  # Turn left 5 degrees
+            # chassis.rotate(angle=-5)  # Turn left 5 degrees
+            chassis.drive_speed(x=0, y=0, z=-5, timeout=0.1)
         else:
             print("Brick is right — turning right")
-            chassis.rotate(angle=5)   # Turn right 5 degrees
+            chassis.drive_speed(x=0, y=0, z=5, timeout=0.1)
 
-    def approach(self, cy, frame_height, tolerance=30, speed=0.2):
+    def approach(self, cy, frame_height, tolerance=200):
         # Initialize robot if needed
         chassis = self.robot.chassis
         bottom_threshold = frame_height - tolerance
+        print(bottom_threshold)
 
         if cy < bottom_threshold:
             print(f"Brick is not close enough (cy = {cy}) — driving forward.")
-            chassis.move(x=0.1, y=0, z=0, xy_speed=speed).wait_for_completed()
+            chassis.drive_speed(x=0.05, y=0, z=0)
         else:
             print(f"Brick is within approach threshold (cy = {cy}) — stopping.")
 
@@ -773,11 +774,11 @@ class YOLO_tester:
 
 def main():
     test = YOLO_tester()
-    #test.brick_detect_bot()
+    test.brick_detect_bot()
     
     # test.collect_images_robot()
     # test.collect_video_robot()
-    test.split()
+    # test.split()
     #test.laptop_cam()
     #test.combine_and_rename_images(["bricks0", "bricks1"])
     #test.brick_detect_test("video_0.mp4")
@@ -787,5 +788,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
