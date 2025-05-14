@@ -93,7 +93,7 @@ class Detector:
 
         # Find and merge boxes
         boxes = result.boxes
-        threshold = 5 # Euclidean Distance to merge
+        threshold = 15 # Euclidean Distance to merge
         raw_boxes = [box.xyxy.cpu().numpy().flatten() for box in boxes]
         centers = [((b[0] + b[2]) / 2, (b[1] + b[3]) / 2) for b in raw_boxes]
 
@@ -142,8 +142,6 @@ class Detector:
 
         box_centers_sorted = sorted(box_centers, key=lambda x: x[0])
         return final_boxes, box_centers_sorted
-    
-
     
     def group_slopes(self, box_centers, slope_threshold=0.1):
         if len(box_centers) < 2:
@@ -210,6 +208,23 @@ class Detector:
         corners = list(set(group1) & set(group2))
         return corners
     
+    def get_bots(self, model, frame):
+        # Run YOLO prediction
+        results = model.predict(source=frame, show=False)
+        boxes = []
+
+        # Extract boxes from the first result
+        if results and len(results) > 0:
+            result = results[0]
+            if hasattr(result, 'boxes') and result.boxes is not None:
+                for box in result.boxes:
+                    # Get [x1, y1, x2, y2] as integers
+                    xyxy = box.xyxy.cpu().numpy().flatten().astype(int)
+                    boxes.append(tuple(xyxy))  # Add as tuple (x1, y1, x2, y2)
+
+        return boxes
+
+
 
     # Draw Functions #
     def draw_lines_between_pairs(self, frame, box_centers):
@@ -232,15 +247,17 @@ class Detector:
 def main():
     test = Detector()
 
-    video_path = "video_2.mp4"
+    video_path = "video_1.mp4"
 
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         print(f"Error: Unable to open video file: {video_path}")
         return
 
-    print('Loading model...')
-    model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\detect\\train11\\weights\\best.pt")
+    print('Loading models...')
+    cone_model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\detect\\cone_model\\weights\\best.pt")
+    bot_model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\detect\\bot_model\\weights\\best.pt")
+
 
     while True:
         # Get next frame
@@ -253,9 +270,9 @@ def main():
         if frame is None:
             continue
 
-        boxes, box_centers = test.get_cones_no_merge(model, frame)
+        cone_boxes, cone_box_centers = test.get_cones(cone_model, frame)
 
-        for box in boxes:
+        for box in cone_boxes:
             x1, y1, x2, y2 = box
             cv2.rectangle(frame, (x1, y1), (x2, y2), color=(0, 0, 255), thickness=2)
 
@@ -266,6 +283,12 @@ def main():
         # corners = test.get_corners(group1, group2)
 
         # test.draw_cone_corners(frame, corners)
+
+        bot_boxes = test.get_bots(bot_model, frame)
+
+        for box in bot_boxes:
+            x1, y1, x2, y2 = box
+            cv2.rectangle(frame, (x1, y1), (x2, y2), color=(255, 0, 0), thickness=2)
 
         # Display Capture
         cv2.imshow("YOLO Detection on Grayscale Video", frame)

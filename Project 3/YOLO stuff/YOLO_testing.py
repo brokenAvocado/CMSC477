@@ -3,18 +3,20 @@ import os
 import random
 import shutil
 import time
-import keyboard
 from queue import Empty
 import shutil
 import re
 import numpy as np
 from itertools import combinations
-from robomaster import robot
-from robomaster import camera
+from ultralytics import YOLO
+
+# import robomaster
+# from robomaster import robot
+# from robomaster import camera
 
 class YOLO_tester:
     def __init__(self):
-        
+        self.robot = robot.Robot()
         return
     
     def collect_images_laptop(self):
@@ -361,7 +363,7 @@ class YOLO_tester:
     def run_model_on_video(self, video_path):
         print('Loading model...')
         model = None
-        # model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\YOLO stuff\\Robot_Cones_Detection_Gray\\train8\\weights\\best.pt")
+        model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\YOLO stuff\\Robot_Brick_Detection\\train13\\weights\\best.pt")
 
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
@@ -394,7 +396,7 @@ class YOLO_tester:
 
             # Draw boxes
             boxes = result.boxes
-            threshold = 50  # Euclidean distance threshold in pixels
+            threshold = 1  # Euclidean distance threshold in pixels
 
             # Step 1: Extract all boxes and compute centers
             raw_boxes = [box.xyxy.cpu().numpy().flatten() for box in boxes]
@@ -449,7 +451,7 @@ class YOLO_tester:
     def run_model_on_video_gray(self, video_path):
         print('Loading model...')
         model = None
-        # model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\YOLO stuff\\Robot_Cones_Detection_Gray\\train10\\weights\\best.pt")
+        model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\YOLO stuff\\Robot_robot_detection\\train16\\weights\\best.pt")
 
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
@@ -643,6 +645,113 @@ class YOLO_tester:
 
                 print(f"Converted: {filename} → {gray_filename}")
 
+    def brick_detect_test(self, video_path):
+        print('Loading model...')
+        model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\YOLO stuff\\Robot_Brick_Detection\\train13\\weights\\best.pt")
+
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            print(f"Error: Unable to open video file: {video_path}")
+            return
+
+        class_colors = {
+            "small": (144, 238, 144),   # Light green
+            "medium": (0, 100, 0),      # Dark green
+            "large": (139, 0, 0)        # Dark blue
+        }
+
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                print("End of video or cannot read frame.")
+                break
+
+            if model.predictor:
+                model.predictor.args.verbose = False
+
+            result = model.predict(source=frame, show=False)[0]
+            boxes = result.boxes
+
+            for box in boxes:
+                x1, y1, x2, y2 = box.xyxy.cpu().numpy().flatten().astype(int)
+                cls_id = int(box.cls.item())
+                class_name = model.names.get(cls_id, "unknown")
+                color = class_colors.get(class_name, (0, 0, 255))  # Default to red
+
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color=color, thickness=2)
+                cv2.putText(frame, class_name, (x1, y1 - 5),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+
+            closest = self.closest_brick(boxes, frame.shape) 
+            if closest is not None:
+                cx = (closest[0] + closest[2]) // 2
+                cy = (closest[1] + closest[3]) // 2
+                cv2.circle(frame, (cx, cy), 10, (255, 0, 255), 2)  # Purple circle
+                self.align_to_brick(cx, frame.shape[1])
+
+            cv2.imshow("YOLO Video Detection", frame)
+
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+        cap.release()
+        cv2.destroyAllWindows()
+
+    def closest_brick(self, boxes, frame_shape):
+        if not boxes:
+            return None
+
+        frame_height, frame_width = frame_shape[:2]
+        bottom_center = (frame_width // 2, frame_height)  # (x, y) at bottom center
+
+        min_distance = float('inf')
+        closest = None
+
+        for box in boxes:
+            x1, y1, x2, y2 = box.xyxy.cpu().numpy().flatten().astype(int)
+            center_x = (x1 + x2) // 2
+            center_y = (y1 + y2) // 2
+
+            # Compute Euclidean distance to bottom center
+            dist = np.sqrt((center_x - bottom_center[0])**2 + (center_y - bottom_center[1])**2)
+
+            if dist < min_distance:
+                min_distance = dist
+                closest = (x1, y1, x2, y2)
+
+        return closest
+
+    def align_to_brick(self, cx, frame_width, threshold=40):
+        center_x = frame_width // 2
+        offset = cx - center_x
+
+        if abs(offset) < threshold:
+            print("Brick is centered.")
+            return  # No turn needed
+
+        # Initialize robot connection once
+        chassis = self.robot.chassis
+
+        if offset < 0:
+            print("Brick is left — turning left")
+            chassis.rotate(angle=-5)  # Turn left 5 degrees
+        else:
+            print("Brick is right — turning right")
+            chassis.rotate(angle=5)   # Turn right 5 degrees
+
+    def approach(self, cy, frame_height, tolerance=30, speed=0.2):
+        # Initialize robot if needed
+        chassis = self.robot.chassis
+        bottom_threshold = frame_height - tolerance
+
+        if cy < bottom_threshold:
+            print(f"Brick is not close enough (cy = {cy}) — driving forward.")
+            chassis.move(x=0.1, y=0, z=0, xy_speed=speed).wait_for_completed()
+        else:
+            print(f"Brick is within approach threshold (cy = {cy}) — stopping.")
+
+
+
 # Example usage:
 # augment_images()
 
@@ -650,10 +759,10 @@ def main():
     test = YOLO_tester()
     # test.collect_images_robot()
     # test.collect_video_robot()
-    test.split()
+    #test.split()
     #test.laptop_cam()
     # test.combine_and_rename_images(["robot_corridor_images0", "robot_corridor_images1", "robot_corridor_images2", "robot_corridor_images3", "robot_corridor_images4"])
-    #test.run_model_on_video("video_0.mp4")
+    test.brick_detect_test("video_0.mp4")
     # test.run_model_on_video_gray("video_0.mp4")
     # test.augment_images()
     # test.to_gray()
