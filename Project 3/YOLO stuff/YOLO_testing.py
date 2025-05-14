@@ -9,16 +9,16 @@ import re
 import numpy as np
 from itertools import combinations
 from ultralytics import YOLO
-# import keyboard
+import keyboard
 
-# import robomaster
-# from robomaster import robot
-# from robomaster import camera
+import robomaster
+from robomaster import robot
+from robomaster import camera
 
 class YOLO_tester:
     def __init__(self):
-        # self.robot = robot.Robot()
-        # self.robot.initialize(conn_type="sta", sn="3JKCH8800100UB")
+        self.robot = robot.Robot()
+        self.robot.initialize(conn_type="sta", sn="3JKCH8800100UB")
         return
     
     def collect_images_laptop(self):
@@ -259,6 +259,61 @@ class YOLO_tester:
         ep_arm.unsub_position()
         ep_robot.close()
         cv2.destroyAllWindows()
+
+    def split(self):
+            # Prompt user for input
+            directory = input("Enter the name of the directory containing .jpg images: ").strip()
+            try:
+                train_percent = int(input("Enter the percentage to use for training (0–100): ").strip())
+            except ValueError:
+                print("Invalid percentage. Please enter an integer.")
+                return
+
+            # Validate inputs
+            if not os.path.isdir(directory):
+                print(f"Error: '{directory}' is not a valid directory.")
+                return
+
+            if not (0 <= train_percent <= 100):
+                print("Percentage must be between 0 and 100.")
+                return
+
+            # Get list of .jpg images
+            images = [f for f in os.listdir(directory) if f.lower().endswith('.jpg')]
+            if not images:
+                print("No .jpg images found in the directory.")
+                return
+
+            # Shuffle image list randomly
+            random.shuffle(images)
+
+            # Calculate split index
+            split_idx = int((train_percent / 100) * len(images))
+
+            # Create train and validation directories
+            train_dir = directory + "_train"
+            val_dir = directory + "_validation"
+            os.makedirs(train_dir, exist_ok=True)
+            os.makedirs(val_dir, exist_ok=True)
+
+            # Copy images and matching .txt label files
+            for i, img in enumerate(images):
+                src_img = os.path.join(directory, img)
+                dst_dir = train_dir if i < split_idx else val_dir
+                dst_img = os.path.join(dst_dir, img)
+                shutil.copy2(src_img, dst_img)
+
+                # Look for corresponding .txt file
+                label_file = os.path.splitext(img)[0] + ".txt"
+                src_label = os.path.join(directory, label_file)
+                dst_label = os.path.join(dst_dir, label_file)
+
+                if os.path.exists(src_label):
+                    shutil.copy2(src_label, dst_label)
+
+            print(f"\nSplit complete:")
+            print(f"  → {split_idx} images (and matching labels) copied to '{train_dir}'")
+            print(f"  → {len(images) - split_idx} images (and matching labels) copied to '{val_dir}'")
 
     def run_model_on_video(self, video_path):
         print('Loading model...')
@@ -599,7 +654,7 @@ class YOLO_tester:
 
     def brick_detect_bot(self):
         print('Loading model...')
-        model = YOLO("C:\\Users\\ninja\\Documents\\College\\CMSC477\\Project 3\\YOLO stuff\\Robot_Brick_Detection\\train13\\weights\\best.pt")
+        model = YOLO("C:\\Users\\ninja\\Documents\\College\\CMSC477\\Project 3\\YOLO stuff\\Robot_Closet_Brick_Detection\\train15\\weights\\best.pt")
 
         # Initialize robot and camera if not already done
         if not hasattr(self, 'robot'):
@@ -722,12 +777,12 @@ def main():
     
     # test.collect_images_robot()
     # test.collect_video_robot()
-    # test.split()
+    test.split()
     #test.laptop_cam()
     #test.combine_and_rename_images(["bricks0", "bricks1"])
     #test.brick_detect_test("video_0.mp4")
     # test.run_model_on_video_gray("video_0.mp4")
-    test.augment_images()
+    #test.augment_images()
     #test.to_gray()
 
 if __name__ == "__main__":
