@@ -16,7 +16,7 @@ from ultralytics import YOLO
 
 class YOLO_tester:
     def __init__(self):
-        self.robot = robot.Robot()
+        #self.robot = robot.Robot()
         return
     
     def collect_images_laptop(self):
@@ -697,6 +697,67 @@ class YOLO_tester:
         cap.release()
         cv2.destroyAllWindows()
 
+    def brick_detect_bot(self):
+        print('Loading model...')
+        model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\YOLO stuff\\Robot_Brick_Detection\\train13\\weights\\best.pt")
+
+        # Initialize robot and camera if not already done
+        if not hasattr(self, 'robot'):
+            self.robot = robot.Robot()
+            self.robot.initialize(conn_type="sta")
+
+        ep_camera = self.robot.camera
+        ep_camera.start_video_stream(display=False)
+
+        class_colors = {
+            "small": (144, 238, 144),   # Light green
+            "medium": (0, 100, 0),      # Dark green
+            "large": (139, 0, 0)        # Dark blue
+        }
+
+        print("Press 'q' to quit.")
+        while True:
+            # Get frame from RoboMaster camera
+            frame = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
+            if frame is None:
+                print("Failed to grab frame.")
+                continue
+
+            if model.predictor:
+                model.predictor.args.verbose = False
+
+            result = model.predict(source=frame, show=False)[0]
+            boxes = result.boxes
+
+            for box in boxes:
+                x1, y1, x2, y2 = box.xyxy.cpu().numpy().flatten().astype(int)
+                cls_id = int(box.cls.item())
+                class_name = model.names.get(cls_id, "unknown")
+                color = class_colors.get(class_name, (0, 0, 255))  # Default to red
+
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color=color, thickness=2)
+                cv2.putText(frame, class_name, (x1, y1 - 5),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+
+            # Get and mark the closest brick
+            closest = self.closest_brick(boxes, frame.shape)
+            if closest is not None:
+                cx = (closest[0] + closest[2]) // 2
+                cy = (closest[1] + closest[3]) // 2
+                cv2.circle(frame, (cx, cy), 10, (255, 0, 255), 2)  # Purple circle
+
+                self.align_to_brick(cx, frame.shape[1])
+                self.approach(cy, frame.shape[0])
+
+            # Show annotated frame
+            cv2.imshow("YOLO Live Detection", frame)
+
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+        ep_camera.stop_video_stream()
+        cv2.destroyAllWindows()
+
     def closest_brick(self, boxes, frame_shape):
         if not boxes:
             return None
@@ -759,13 +820,13 @@ def main():
     test = YOLO_tester()
     # test.collect_images_robot()
     # test.collect_video_robot()
-    #test.split()
+    test.split()
     #test.laptop_cam()
     # test.combine_and_rename_images(["robot_corridor_images0", "robot_corridor_images1", "robot_corridor_images2", "robot_corridor_images3", "robot_corridor_images4"])
-    test.brick_detect_test("video_0.mp4")
+    #test.brick_detect_test("video_0.mp4")
     # test.run_model_on_video_gray("video_0.mp4")
     # test.augment_images()
-    # test.to_gray()
+    #test.to_gray()
 
 if __name__ == "__main__":
     main()
