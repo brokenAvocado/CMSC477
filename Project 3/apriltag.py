@@ -15,11 +15,13 @@ class AprilTagDetector: # Given
 
         self.boxWidth = 0.266
         self.boxRadius = self.boxWidth*2**0.5
+        
         self.seenTags = []
-        self.obstacles = {}
+        self.relevantTags = {}
+        self.obstaclesPointers = {}
 
     def troubleshoot(self):
-        print(f"Seen tags: {self.seenTags}, Obstacles: {self.obstacles}")
+        print(f"Seen tags: {self.seenTags}, Obstacles: {self.relevantTags}")
 
     def find_tags(self, frame_gray):
         '''
@@ -45,16 +47,16 @@ class AprilTagDetector: # Given
                 pose = self.get_box_global(tag, robot_global_pose)
                 pose = np.array(pose)
 
-                if self.obstacles: # Check if not empty
-                    for ob_key in self.obstacles:
-                        pose_stored = self.obstacles[ob_key]
+                if self.relevantTags: # Check if not empty
+                    for ob_key in self.relevantTags:
+                        pose_stored = self.relevantTags[ob_key]
                         if np.linalg.norm(pose-pose_stored) <= tol:
-                            self.obstacles[ob_key] = (pose + pose_stored)/2
+                            self.relevantTags[ob_key] = (pose + pose_stored)/2
                             newObstacle = False
                     if newObstacle:
-                        self.obstacles[tag.tag_id] = pose
+                        self.relevantTags[tag.tag_id] = pose
                 else:
-                    self.obstacles[tag.tag_id] = pose
+                    self.relevantTags[tag.tag_id] = pose
 
     def get_box_relative(self, detection):
         '''
@@ -99,10 +101,12 @@ class AprilTagDetector: # Given
         global_posY = robot_global_pose[1]
         global_rot = robot_global_pose[2]
 
-        box_g_rot = box_rot-global_rot
+        box_g_rot = -global_rot+box_rot
         box_dist = (box_posX**2+box_posY**2)**0.5
         final_posX = global_posX + box_dist*np.sin(np.pi/180*box_g_rot)
         final_posY = global_posY + box_dist*np.cos(np.pi/180*box_g_rot)
+        # print(f"Box Position {detection.tag_id}: {box_posX}, {box_posY}, {box_g_rot}, {box_rot} ")
+        # print(f"Robot Position: {global_posX}, {global_posY}, {global_rot}")
 
         return [final_posX, final_posY]
     
@@ -149,9 +153,10 @@ class AprilTagDetector: # Given
         # graph = patches.Circle((0, 0), radius=self.boxWidth)
         # ax.add_patch(graph)
         graph2 = ax.plot([],[], 'o', markersize=15, color='red')[0]
+        graph3 = ax.plot([],[], color='red')[0]
         ax.set(xlim=[-1, 5] ,ylim=[-1, 10])
         
-        return graph, graph2
+        return graph, graph2, graph3
     
     def draw_detections(self, frame, detections): # Given
         '''
@@ -169,7 +174,7 @@ class AprilTagDetector: # Given
             cv2.line(frame, top_left, bottom_right, color=(0, 0, 255), thickness=2)
             cv2.line(frame, top_right, bottom_left, color=(0, 0, 255), thickness=2)
     
-    def plot_detections(self, roboPose, graph1, graph2):
+    def plot_detections(self, roboPose, graph1, graph2, graph3):
         '''
         (Visualization)
         Need to run initGraph for this to work
@@ -177,14 +182,21 @@ class AprilTagDetector: # Given
         '''
         plot_x = []
         plot_y = []
+
+        vector_x = []
+        vector_y = []
         amp = 0.2
 
         # closeTag = self.closest(detections)
         
         # Do the following for all tags
-        for pos in list(self.obstacles.values()):
+        for pos in list(self.relevantTags.values()):
             plot_x.append(pos[0])
             plot_y.append(pos[1])
+
+        # Plot the robot's orientation
+        vector_x = [roboPose[0], roboPose[0]+np.cos(np.pi/180*(roboPose[2]+90))]
+        vector_y = [roboPose[1], roboPose[1]+np.sin(np.pi/180*(roboPose[2]+90))]
 
         # set the x and y data
         # graph.center = plot_x, plot_y
@@ -193,6 +205,9 @@ class AprilTagDetector: # Given
 
         graph2.set_xdata(roboPose[0])
         graph2.set_ydata(roboPose[1])
+
+        graph3.set_xdata(vector_x)
+        graph3.set_ydata(vector_y)
 
         # for i, label in enumerate(labels):
         #     plt.text(plot_x[i], plot_y[i], label, ha='center', va='bottom')

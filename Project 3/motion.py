@@ -31,21 +31,22 @@ class motion:
         self.gripper = 'opened'
 
         # Robot State Init
+        self.globalOffset = [0.67, 0.49, 0]
+        # self.globalOffset = [0,0,0]
         self.globalPose = [0,0,0]
         self.yawOffset = 0
         self.yawInit = False
         self.orientationSet = False
 
-        self.target_x = 0 # deprecated
-        self.target_y = 0 # deprecated
-        self.target_z = 0 # deprecated
-
-
+        self.lastTargetZ = -90
 
     def updatePosition(self, pos_info):
         x, y, z = pos_info
-        self.globalPose[0] = x*np.cos(np.pi/180*self.yawOffset) - y*np.sin(np.pi/180*self.yawOffset)
-        self.globalPose[1] = -(y*np.cos(np.pi/180*self.yawOffset) + x*np.sin(np.pi/180*self.yawOffset))
+        temp_globalX = x*np.cos(np.pi/180*self.yawOffset) - y*np.sin(np.pi/180*self.yawOffset)
+        temp_globalY = -(y*np.cos(np.pi/180*self.yawOffset) + x*np.sin(np.pi/180*self.yawOffset))
+
+        self.globalPose[0] = self.globalOffset[0] + temp_globalX
+        self.globalPose[1] = self.globalOffset[1] + temp_globalY
         
     def updateRotation(self, rot_info):
         yaw, _, _= rot_info
@@ -117,7 +118,13 @@ class motion:
     def release(self):
         self.ep_gripper.open(100)
 
-    def go_to(self, target_x, target_y):
+    def arctan2Test(self, target_x, target_y):
+        '''
+        Not part of the main script
+        '''
+        print(180/np.pi*np.arctan2(target_x, target_y))
+
+    def go_to(self, target_x, target_y, flipTol = 0.5, speed_mult = 0.2, speed_offset=0.05):
         '''
         Takes global x and y target positions and converts it to relative
         kinematic commands
@@ -125,28 +132,27 @@ class motion:
         current_x = self.globalPose[0]
         current_y = self.globalPose[1]
 
-        dist_x = target_x-current_x
-        dist_y = target_y-current_y
+        # Distances in the global frame
+        dist_x = target_x-current_x 
+        dist_y = target_y-current_y 
 
-        self.target_z = 180/np.pi*np.arctan2(dist_x,dist_y)
-        if dist_y == 0 and dist_x > 0:
-            self.target_z = -90
-        elif dist_y == 0 and dist_x > 0:
-            self.target_z = 90
-        else:
-            if dist_x > -0.1:
-                self.target_z = -self.target_z 
+        target_z = -180/np.pi*np.arctan2(dist_x,dist_y)
 
-        x_mult = 0.2
-        y_mult = .5
+        # if dist_y == 0 and dist_x > 0:
+        #     target_z = -90
+        # elif dist_y == 0 and dist_x < 0:
+        #     target_z = 90
+        # else:
+        #     if dist_x > 0:
+        #         target_z = -target_z 
         
         dist_rel = ((dist_x)**2+(dist_y)**2)**0.5
-        vel_z = self.rotate_to(self.target_z)
-        vel_x = x_mult*dist_rel
-
-        print(f"Goal :  {dist_x},{dist_y},{self.target_z}, Current : {self.globalPose[2]}")
+        vel_z = self.rotate_to(target_z)
+        vel_x = speed_mult*np.arctan(dist_rel)+speed_offset
 
         self.ep_chassis.drive_speed(x=vel_x, y=0, z=vel_z, timeout=0.1)
+
+        print(f"Goal: {target_z}, Current: {self.globalPose[2]}")
 
         if abs(dist_rel) < 0.1:
             vel_x = 0
@@ -155,20 +161,31 @@ class motion:
             return False
         
     def sequence(self, targets):
+        '''
+        Takes an array of global positional points that the robot needs to go,
+        Sequentially runs each point that it needs to go to
+        '''
         pos = targets[0]
         moveOn = self.go_to(pos[0], pos[1])
         if moveOn:
             targets.pop(0)
         return targets
 
-    def rotate_to(self, target_z, rotate_tol = 0.3, speedMult = 0.05, direction = -1):
+    def rotate_to(self, target_z, rotate_tol = 0.3, speedMult = 0.05, direction = -1, flipTol = 1):
         '''
         Takes global orientation angle and will point in that direction
         '''
-        if abs(target_z-self.globalPose[2]) > rotate_tol:
-            if target_z-self.globalPose[2] < 0:
-                direction = 1
-            return direction*speedMult*(target_z-self.globalPose[2])**2
+        flipped = False
+        diff = target_z-self.globalPose[2]
+        if abs(diff) > rotate_tol:
+            # if 180-abs(target_z) < flipTol:
+            #     flipped = True
+
+            # if not flipped:
+            if diff < 0:
+                direction = 1 # Rotate clockwise
+
+            return direction*speedMult*(diff)**2
         else:
             return 0
             
