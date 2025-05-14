@@ -18,8 +18,6 @@ def shutdown():
     Sequence for stopping the robot 
     '''
     robo.ep_arm.unsub_position()
-    robo.ep_chassis.unsub_attitude()
-    robo.ep_chassis.unsub_position()
     print('Waiting for robomaster shutdown')
     robo.ep_camera.stop_video_stream()
     robo.ep_robot.close()
@@ -57,7 +55,7 @@ def test_aprilTagGlobal():
     Get global positioning of AprilTags and represent them graphically
     '''
     robo.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
-    graph1, graph2 = apriltag.initGraph()
+    graph1, graph2, graph3 = apriltag.initGraph()
     robo.get_robotPosition()
     robo.get_robotAngle()
 
@@ -79,7 +77,8 @@ def test_aprilTagGlobal():
             apriltag.refine_tags(detections, robo.globalPose, 0.1)
             apriltag.troubleshoot()
 
-        apriltag.plot_detections(robo.globalPose, graph1, graph2)
+        apriltag.plot_detections(robo.globalPose, graph1, graph2, graph3)
+        print(robo.globalPose[2])
 
         # Display the captured frame
         cv2.imshow('Camera', img)
@@ -92,10 +91,11 @@ def test_smoothMotion():
     Get global positioning of AprilTags and represent them graphically
     '''
     robo.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
-    graph1, graph2 = apriltag.initGraph()
+    graph1, graph2, graph3 = apriltag.initGraph()
     robo.get_robotPosition()
     robo.get_robotAngle()
-    targets = [[0, 1],[1, 1],[1, 0],[0, 0]]
+    targets = [[2.8, 1.1],[1.8, 2.7],[1.8, 3.6],[0.54, 5.3]]
+    # targets = [[1, 0], [1, -1], [0, -1], [0, 0]]
 
     while True:
         try:
@@ -105,7 +105,7 @@ def test_smoothMotion():
             continue
         
         targets = robo.sequence(targets)
-        print(targets)
+        # print(targets)
 
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         gray.astype(np.uint8)
@@ -113,10 +113,11 @@ def test_smoothMotion():
         apriltag.draw_detections(img, detections)
 
         if len(detections) > 0:
-            apriltag.refine_tags(detections, robo.globalPose, 0.1)
-            # apriltag.troubleshoot()
+            apriltag.refine_tags(detections, robo.globalPose, 0.15)
+        
+        apriltag.troubleshoot()
 
-        apriltag.plot_detections(robo.globalPose, graph1, graph2)
+        apriltag.plot_detections(robo.globalPose, graph1, graph2, graph3)
 
         # Display the captured frame
         cv2.imshow('Camera', img)
@@ -156,8 +157,9 @@ if __name__ == "__main__":
     apriltag = AprilTagDetector()
 
     try:
-        while True:
-            test_smoothMotion()
+        # test_aprilTagGlobal()
+        test_smoothMotion()
+        # robo.arctan2Test(-0.065, .1)
     except KeyboardInterrupt:
         pass
     except Exception as e:
