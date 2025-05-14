@@ -9,16 +9,16 @@ import re
 import numpy as np
 from itertools import combinations
 from ultralytics import YOLO
-import keyboard
+# import keyboard
 
-import robomaster
-from robomaster import robot
-from robomaster import camera
+# import robomaster
+# from robomaster import robot
+# from robomaster import camera
 
 class YOLO_tester:
     def __init__(self):
-        self.robot = robot.Robot()
-        self.robot.initialize(conn_type="sta", sn="3JKCH8800100UB")
+        # self.robot = robot.Robot()
+        # self.robot.initialize(conn_type="sta", sn="3JKCH8800100UB")
         return
     
     def collect_images_laptop(self):
@@ -724,10 +724,10 @@ def main():
     # test.collect_video_robot()
     # test.split()
     #test.laptop_cam()
-    test.combine_and_rename_images(["bricks0", "bricks1"])
+    #test.combine_and_rename_images(["bricks0", "bricks1"])
     #test.brick_detect_test("video_0.mp4")
     # test.run_model_on_video_gray("video_0.mp4")
-    # test.augment_images()
+    test.augment_images()
     #test.to_gray()
 
 if __name__ == "__main__":
