@@ -142,14 +142,8 @@ def show_camera_feed():
 
 def doarmstuff():
     # robo.get_gripper_status()
-    # robo.stow_arm()
-    try:
-        while True:
-            if keyboard.is_pressed('q'):
-                break
-            time.sleep(0.1)
-    except KeyboardInterrupt:
-        pass
+    robo.ready_arm()
+    robo.release()
 
 if __name__ == "__main__":
     # Robot Init

@@ -9,14 +9,16 @@ import re
 import numpy as np
 from itertools import combinations
 from ultralytics import YOLO
+import keyboard
 
-# import robomaster
-# from robomaster import robot
-# from robomaster import camera
+import robomaster
+from robomaster import robot
+from robomaster import camera
 
 class YOLO_tester:
     def __init__(self):
-        #self.robot = robot.Robot()
+        self.robot = robot.Robot()
+        self.robot.initialize(conn_type="sta", sn="3JKCH8800100UB")
         return
     
     def collect_images_laptop(self):
@@ -104,26 +106,26 @@ class YOLO_tester:
         ARM_STEP = 10  # degrees per press
 
         while True:
-            # if keyboard.is_pressed("w"):
-            #     ep_chassis.move(x=MOVE_DIST, y=0, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
-            # elif keyboard.is_pressed("s"):
-            #     ep_chassis.move(x=-MOVE_DIST, y=0, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
-            # elif keyboard.is_pressed("a"):
-            #     ep_chassis.move(x=0, y=-MOVE_DIST, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
-            # elif keyboard.is_pressed("d"):
-            #     ep_chassis.move(x=0, y=MOVE_DIST, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
-            # elif keyboard.is_pressed("q"):
-            #     ep_chassis.move(x=0, y=0, z=ROTATE_ANGLE, z_speed=ROTATE_SPEED).wait_for_completed()
-            # elif keyboard.is_pressed("e"):
-            #     ep_chassis.move(x=0, y=0, z=-ROTATE_ANGLE, z_speed=ROTATE_SPEED).wait_for_completed()
-            # elif keyboard.is_pressed("up"):
-            #     ep_robot.gripper.move(arm=-ARM_STEP).wait_for_completed()  # Replace with correct API
-            # elif keyboard.is_pressed("down"):
-            #     ep_robot.gripper.move(arm=ARM_STEP).wait_for_completed()   # Replace with correct API
-            # elif keyboard.is_pressed("esc"):
-            #     print("Exiting control...")
-            #     break
-            # time.sleep(0.01)
+            if keyboard.is_pressed("w"):
+                ep_chassis.move(x=MOVE_DIST, y=0, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
+            elif keyboard.is_pressed("s"):
+                ep_chassis.move(x=-MOVE_DIST, y=0, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
+            elif keyboard.is_pressed("a"):
+                ep_chassis.move(x=0, y=-MOVE_DIST, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
+            elif keyboard.is_pressed("d"):
+                ep_chassis.move(x=0, y=MOVE_DIST, z=0, xy_speed=MOVE_SPEED).wait_for_completed()
+            elif keyboard.is_pressed("q"):
+                ep_chassis.move(x=0, y=0, z=ROTATE_ANGLE, z_speed=ROTATE_SPEED).wait_for_completed()
+            elif keyboard.is_pressed("e"):
+                ep_chassis.move(x=0, y=0, z=-ROTATE_ANGLE, z_speed=ROTATE_SPEED).wait_for_completed()
+            elif keyboard.is_pressed("up"):
+                ep_robot.gripper.move(arm=-ARM_STEP).wait_for_completed()  # Replace with correct API
+            elif keyboard.is_pressed("down"):
+                ep_robot.gripper.move(arm=ARM_STEP).wait_for_completed()   # Replace with correct API
+            elif keyboard.is_pressed("esc"):
+                print("Exiting control...")
+                break
+            time.sleep(0.01)
 
             try:
                 img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
@@ -258,107 +260,60 @@ class YOLO_tester:
         ep_robot.close()
         cv2.destroyAllWindows()
 
-
     def split(self):
-        # Prompt user for input
-        directory = input("Enter the name of the directory containing .jpg images: ").strip()
-        try:
-            train_percent = int(input("Enter the percentage to use for training (0–100): ").strip())
-        except ValueError:
-            print("Invalid percentage. Please enter an integer.")
-            return
+            # Prompt user for input
+            directory = input("Enter the name of the directory containing .jpg images: ").strip()
+            try:
+                train_percent = int(input("Enter the percentage to use for training (0–100): ").strip())
+            except ValueError:
+                print("Invalid percentage. Please enter an integer.")
+                return
 
-        # Validate inputs
-        if not os.path.isdir(directory):
-            print(f"Error: '{directory}' is not a valid directory.")
-            return
+            # Validate inputs
+            if not os.path.isdir(directory):
+                print(f"Error: '{directory}' is not a valid directory.")
+                return
 
-        if not (0 <= train_percent <= 100):
-            print("Percentage must be between 0 and 100.")
-            return
+            if not (0 <= train_percent <= 100):
+                print("Percentage must be between 0 and 100.")
+                return
 
-        # Get list of .jpg images
-        images = [f for f in os.listdir(directory) if f.lower().endswith('.jpg')]
-        if not images:
-            print("No .jpg images found in the directory.")
-            return
+            # Get list of .jpg images
+            images = [f for f in os.listdir(directory) if f.lower().endswith('.jpg')]
+            if not images:
+                print("No .jpg images found in the directory.")
+                return
 
-        # Shuffle image list randomly
-        random.shuffle(images)
+            # Shuffle image list randomly
+            random.shuffle(images)
 
-        # Calculate split index
-        split_idx = int((train_percent / 100) * len(images))
+            # Calculate split index
+            split_idx = int((train_percent / 100) * len(images))
 
-        # Create train and validation directories
-        train_dir = directory + "_train"
-        val_dir = directory + "_validation"
-        os.makedirs(train_dir, exist_ok=True)
-        os.makedirs(val_dir, exist_ok=True)
+            # Create train and validation directories
+            train_dir = directory + "_train"
+            val_dir = directory + "_validation"
+            os.makedirs(train_dir, exist_ok=True)
+            os.makedirs(val_dir, exist_ok=True)
 
-        # Copy images and matching .txt label files
-        for i, img in enumerate(images):
-            src_img = os.path.join(directory, img)
-            dst_dir = train_dir if i < split_idx else val_dir
-            dst_img = os.path.join(dst_dir, img)
-            shutil.copy2(src_img, dst_img)
+            # Copy images and matching .txt label files
+            for i, img in enumerate(images):
+                src_img = os.path.join(directory, img)
+                dst_dir = train_dir if i < split_idx else val_dir
+                dst_img = os.path.join(dst_dir, img)
+                shutil.copy2(src_img, dst_img)
 
-            # Look for corresponding .txt file
-            label_file = os.path.splitext(img)[0] + ".txt"
-            src_label = os.path.join(directory, label_file)
-            dst_label = os.path.join(dst_dir, label_file)
+                # Look for corresponding .txt file
+                label_file = os.path.splitext(img)[0] + ".txt"
+                src_label = os.path.join(directory, label_file)
+                dst_label = os.path.join(dst_dir, label_file)
 
-            if os.path.exists(src_label):
-                shutil.copy2(src_label, dst_label)
+                if os.path.exists(src_label):
+                    shutil.copy2(src_label, dst_label)
 
-        print(f"\nSplit complete:")
-        print(f"  → {split_idx} images (and matching labels) copied to '{train_dir}'")
-        print(f"  → {len(images) - split_idx} images (and matching labels) copied to '{val_dir}'")
-
-    def laptop_cam(self):
-        print('model')
-        model = None
-        # model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\YOLO stuff\\Red_Green Testing\\train1\\weights\\best.pt")
-
-
-        # Use vid instead of ep_camera to use your laptop's webcam
-        vid = cv2.VideoCapture(0)
-
-        # ep_robot = robot.Robot()
-        # ep_robot.initialize(conn_type="ap")
-        # ep_camera = ep_robot.camera
-        # ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
-
-        while True:
-            _, frame = vid.read()
-            #frame = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
-
-            if frame is not None:
-                start = time.time()
-                if model.predictor:
-                    model.predictor.args.verbose = False
-                result = model.predict(source=frame, show=False)[0]
-
-
-                # DIY visualization is much faster than show=True for some reason
-                boxes = result.boxes
-                for box in boxes:
-                    xyxy = box.xyxy.cpu().numpy().flatten()
-                    cv2.rectangle(frame,
-                                (int(xyxy[0]), int(xyxy[1])), 
-                                (int(xyxy[2]), int(xyxy[3])),
-                                color=(0, 0, 255), thickness=2)
-                    
-                cv2.imshow('frame', frame)
-                key = cv2.waitKey(1)
-                if key == ord('q'):
-                    break
-
-
-                # print(results)
-
-
-                end = time.time()
-                print(1.0 / (end-start))
+            print(f"\nSplit complete:")
+            print(f"  → {split_idx} images (and matching labels) copied to '{train_dir}'")
+            print(f"  → {len(images) - split_idx} images (and matching labels) copied to '{val_dir}'")
 
     def run_model_on_video(self, video_path):
         print('Loading model...')
@@ -699,7 +654,7 @@ class YOLO_tester:
 
     def brick_detect_bot(self):
         print('Loading model...')
-        model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\YOLO stuff\\Robot_Brick_Detection\\train13\\weights\\best.pt")
+        model = YOLO("C:\\Users\\ninja\\Documents\\College\\CMSC477\\Project 3\\YOLO stuff\\Robot_Closet_Brick_Detection\\train15\\weights\\best.pt")
 
         # Initialize robot and camera if not already done
         if not hasattr(self, 'robot'):
@@ -707,7 +662,7 @@ class YOLO_tester:
             self.robot.initialize(conn_type="sta")
 
         ep_camera = self.robot.camera
-        ep_camera.start_video_stream(display=False)
+        ep_camera.start_video_stream(display=False, resolution=camera.STREAM_720P)
 
         class_colors = {
             "small": (144, 238, 144),   # Light green
@@ -746,8 +701,8 @@ class YOLO_tester:
                 cy = (closest[1] + closest[3]) // 2
                 cv2.circle(frame, (cx, cy), 10, (255, 0, 255), 2)  # Purple circle
 
-                self.align_to_brick(cx, frame.shape[1])
-                self.approach(cy, frame.shape[0])
+                # self.align_to_brick(cx, frame.shape[1])
+                # self.approach(cy, frame.shape[0])
 
             # Show annotated frame
             cv2.imshow("YOLO Live Detection", frame)
@@ -818,14 +773,16 @@ class YOLO_tester:
 
 def main():
     test = YOLO_tester()
+    #test.brick_detect_bot()
+    
     # test.collect_images_robot()
     # test.collect_video_robot()
     test.split()
     #test.laptop_cam()
-    # test.combine_and_rename_images(["robot_corridor_images0", "robot_corridor_images1", "robot_corridor_images2", "robot_corridor_images3", "robot_corridor_images4"])
+    #test.combine_and_rename_images(["bricks0", "bricks1"])
     #test.brick_detect_test("video_0.mp4")
     # test.run_model_on_video_gray("video_0.mp4")
-    # test.augment_images()
+    #test.augment_images()
     #test.to_gray()
 
 if __name__ == "__main__":
