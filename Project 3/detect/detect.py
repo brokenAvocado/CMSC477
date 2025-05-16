@@ -13,14 +13,15 @@ from sklearn.cluster import KMeans
 
 
 class Detector:
-    def __init__(self, sample_frame, ep_chassis):
-        self.cone_model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\detect\\cone_model\\weights\\best.pt")
-        self.bot_model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\detect\\bot_model\\weights\\best.pt")
-        self.closet_brick_model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\detect\\closet_brick_model\\weights\\best.pt")
+    def __init__(self, ep_chassis):
+        self.cone_model = YOLO("C:\\Users\\ninja\\Documents\\College\\CMSC477\\Project 3\\detect\\cone_model\\weights\\best.pt")
+        self.bot_model = YOLO("C:\\Users\\ninja\\Documents\\College\\CMSC477\\Project 3\\detect\\bot_model\\weights\\best.pt")
+        self.closet_brick_model = YOLO("C:\\Users\\ninja\\Documents\\College\\CMSC477\\Project 3\\detect\\closet_brick_model\\weights\\best.pt")
+        self.shape = [720, 1280]
 
         self.ep_chassis = ep_chassis
 
-        self.frame_shape = sample_frame.shape
+        self.frame_shape = self.shape
         return
     
 
@@ -248,7 +249,7 @@ class Detector:
     # Brick Detection #
     def get_closet_bricks(self, frame, model=None):
         if model == None:
-            model = self.cone_model
+            model = self.closet_brick_model
 
         # Run YOLO prediction
         results = model.predict(source=frame, show=False)
@@ -278,7 +279,7 @@ class Detector:
         closest = None
 
         for box in boxes:
-            x1, y1, x2, y2 = box.xyxy.cpu().numpy().flatten().astype(int)
+            x1, y1, x2, y2 = box
             center_x = (x1 + x2) // 2
             center_y = (y1 + y2) // 2
 
@@ -311,7 +312,7 @@ class Detector:
             print("Brick is right — turning right")
             self.ep_chassis.drive_speed(x=0, y=0, z=5, timeout=0.1)
 
-    def approach(self, cy, frame_height, tolerance=200):
+    def approach(self, cy, tolerance=200):
         frame_height = self.frame_shape[0]
 
         # Initialize robot if needed
@@ -324,7 +325,7 @@ class Detector:
             return False
         else:
             print(f"Brick is within approach threshold (cy = {cy}) — stopping.")
-
+            self.ep_chassis.drive_speed(x=0, y=0, z=0)
             return True
 
     # Draw Functions #
@@ -347,26 +348,30 @@ class Detector:
     # Brick Detection Control Loop #
     # BEFORE RUNNING THIS THE GRIPPER MUST BE LOWERED AND THE BOT MUST BE FACING THE CLOSET
     def run_closet_bricks(self, ep_camera):
+        print("ENTERED DETECT")
         while True:
             try:
                 frame = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
+                print("Got Frame")
             except Empty:
                 time.sleep(0.001)
+                print("Die")
                 continue
 
             brick_boxes = self.get_closet_bricks(frame)
+            
+            if brick_boxes:
+                closest_cx, closest_cy = self.closest_brick(brick_boxes)
 
-            closest_cx, closest_cy = self.closest_brick(brick_boxes)
+                aligned = self.align_to_brick(closest_cx)
+                if aligned:
+                    approached = self.approach(closest_cy)
+                    if approached:
+                        break
 
-            aligned = self.align_to_brick(closest_cx)
-            if aligned:
-                approached = self.approach(closest_cy)
-                if approached:
-                    break
-
-            for box in brick_boxes:
-                x1, y1, x2, y2 = box
-                cv2.rectangle(frame, (x1, y1), (x2, y2), color=(0, 255, 0), thickness=2)
+                for box in brick_boxes:
+                    x1, y1, x2, y2 = box
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), color=(0, 255, 0), thickness=2)
 
             cv2.imshow("Detection Frame", frame)
 

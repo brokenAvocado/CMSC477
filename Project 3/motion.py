@@ -31,8 +31,8 @@ class motion:
         self.gripper = 'opened'
 
         # Robot State Init
-        # self.globalOffset = [0.67, 0.49, 0]
-        self.globalOffset = [0,0,0]
+        self.globalOffset = [0.80, 0.72, 0]
+        # self.globalOffset = [0,0,0]
         self.globalPose = [0,0,0]
         self.yawOffset = 0
         self.yawInit = False
@@ -108,17 +108,20 @@ class motion:
         print(f'1: {angle1}   2: {angle2}   3: {angle3}')
 
     def stow_arm(self): # Stows the arm back to its original position
-        self.ep_arm.moveto(82, 41).wait_for_completed()
+        self.ep_arm.moveto(82, 41).wait_for_completed(timeout=3)
         self.stowed = True
 
     def ready_arm(self): # Readies the arm to approach an object
-        self.ep_arm.moveto(185, -75).wait_for_completed()
+        print("ARM LOWER")
+        self.ep_arm.moveto(185, -75).wait_for_completed(timeout=3)
+        self.ep_gripper.open(100)
         self.stowed = False
+        print("ARM DONE")
 
     def pickup(self): # Picks up an object (lowers arm slightly, grips, raises)
         self.grasp()
         time.sleep(1)
-        self.ep_arm.moveto(182, -38).wait_for_completed()
+        self.ep_arm.moveto(182, -38).wait_for_completed(timeout=3)
 
     def grasp(self):
         self.ep_gripper.close(100)
@@ -127,6 +130,8 @@ class motion:
         time.sleep(1)
 
     def release(self):
+        self.ep_gripper.open(100)
+        self.ep_gripper.open(100)
         self.ep_gripper.open(100)
 
     def arctan2Test(self, target_x, target_y):
@@ -186,27 +191,10 @@ class motion:
         '''
         Takes global orientation angle and will point in that direction
         '''
-        diff = 0
+        diff = (target_z - self.globalPose[2] + 180) % 360 - 180
+        direction = -1 if diff > 0 else 1
         if False:
             2
-
-        print(f'Target: {target_z}, Pose Z: {self.globalPose[2]}, Sum: {abs(target_z) + abs(self.globalPose[2])}, Sign Target: {np.sign(target_z)} Sign Pose: {np.sign(self.globalPose[2])}')
-        if (abs(target_z) + abs(self.globalPose[2]) > 180) and (np.sign(target_z) != np.sign(self.globalPose[2])):
-            diff = target_z + self.globalPose[2]
-            direction = np.sign(abs(target_z)-abs(self.globalPose[2])) 
-        # elif (np.sign(target_z) != np.sign(self.globalPose[2])):
-        #     diff = target_z-self.globalPose[2]
-        #     if diff > 0:
-        #         direction = 1 # Rotate clockwise
-        else:
-            diff = target_z-self.globalPose[2]
-            if diff < 0:
-                direction = 1
-
-        if direction == 1:
-            print(f'Direction: Clockwise,         Speed: {abs(diff)}')
-        else:
-            print(f'Direction: Counter Clockwise, Speed: {abs(diff)}')
 
         if abs(diff) > rotate_tol:
             return direction*speedMult*(diff)**2
