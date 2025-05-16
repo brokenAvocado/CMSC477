@@ -31,8 +31,8 @@ class motion:
         self.gripper = 'opened'
 
         # Robot State Init
-        self.globalOffset = [0.67, 0.49, 0]
-        # self.globalOffset = [0,0,0]
+        # self.globalOffset = [0.67, 0.49, 0]
+        self.globalOffset = [0,0,0]
         self.globalPose = [0,0,0]
         self.yawOffset = 0
         self.yawInit = False
@@ -54,7 +54,18 @@ class motion:
             self.yawOffset = -yaw
             self.yawInit = True    
         self.globalPose[2] = -yaw - self.yawOffset - 90
-        # print(f"Raw yaw: {yaw}")
+        # print(f"Raw yaw: {yaw}     GlobalPose2: {self.globalPose[2]}")
+        # if yaw > -180 and yaw < 86:
+            # fixedYaw = self.map_range(yaw, -180, -86, -86, -180)
+            #print(f"Raw yaw: {yaw}     GlobalPose2: {self.globalPose[2]}     FixedYaw: {fixedYaw}")
+            # self.globalPose[2] = fixedYaw
+        # elif yaw > -86 and yaw < 180:
+            # fixedYaw = self.map_range(yaw, -86, 180, 180, -86)
+            #print(f"Raw yaw: {yaw}     GlobalPose2: {self.globalPose[2]}     FixedYaw: {fixedYaw}")
+            # self.globalPose[2] = fixedYaw
+
+    def map_range(self, x, in_min, in_max, out_min, out_max):
+      return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
             
     def printStatement(self,pos_info):
         x, y, z = pos_info
@@ -152,7 +163,7 @@ class motion:
 
         self.ep_chassis.drive_speed(x=vel_x, y=0, z=vel_z, timeout=0.1)
 
-        print(f"Goal: {target_z}, Current: {self.globalPose[2]}")
+        #print(f"Goal: {target_z}, Current: {self.globalPose[2]}, CurrentVel: {vel_z}")
 
         if abs(dist_rel) < 0.1:
             vel_x = 0
@@ -175,16 +186,29 @@ class motion:
         '''
         Takes global orientation angle and will point in that direction
         '''
-        flipped = False
-        diff = target_z-self.globalPose[2]
-        if abs(diff) > rotate_tol:
-            # if 180-abs(target_z) < flipTol:
-            #     flipped = True
+        diff = 0
+        if False:
+            2
 
-            # if not flipped:
+        print(f'Target: {target_z}, Pose Z: {self.globalPose[2]}, Sum: {abs(target_z) + abs(self.globalPose[2])}, Sign Target: {np.sign(target_z)} Sign Pose: {np.sign(self.globalPose[2])}')
+        if (abs(target_z) + abs(self.globalPose[2]) > 180) and (np.sign(target_z) != np.sign(self.globalPose[2])):
+            diff = target_z + self.globalPose[2]
+            direction = np.sign(abs(target_z)-abs(self.globalPose[2])) 
+        # elif (np.sign(target_z) != np.sign(self.globalPose[2])):
+        #     diff = target_z-self.globalPose[2]
+        #     if diff > 0:
+        #         direction = 1 # Rotate clockwise
+        else:
+            diff = target_z-self.globalPose[2]
             if diff < 0:
-                direction = 1 # Rotate clockwise
+                direction = 1
 
+        if direction == 1:
+            print(f'Direction: Clockwise,         Speed: {abs(diff)}')
+        else:
+            print(f'Direction: Counter Clockwise, Speed: {abs(diff)}')
+
+        if abs(diff) > rotate_tol:
             return direction*speedMult*(diff)**2
         else:
             return 0

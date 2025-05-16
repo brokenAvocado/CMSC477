@@ -94,8 +94,10 @@ def test_smoothMotion():
     graph1, graph2, graph3 = apriltag.initGraph()
     robo.get_robotPosition()
     robo.get_robotAngle()
-    targets = [[2.8, 1.1],[1.8, 2.7],[1.8, 3.6],[0.54, 5.3]]
-    # targets = [[1, 0], [1, -1], [0, -1], [0, 0]]
+    # targets = [[1, 0.2], [1.5, 0.5], [1, 1], [1.2, 0.2]]
+    # targets = [[2.8, 1.1],[1.8, 2.7],[1.8, 3.6],[0.54, 5.3]] # to get from start to enemy closet
+    targets = [[2.8, 1.1],[1.8, 2.7],[1.8, 3.6],[0.54, 5.3],[1.8, 3.6],[1.8, 2.7],[2.8,1.1]] # to get from start to enemy closet and back to our closet
+    #targets = [[1, 0], [1, -1], [0, -1], [0, 0]] # square
 
     while True:
         try:
@@ -105,7 +107,7 @@ def test_smoothMotion():
             continue
         
         targets = robo.sequence(targets)
-        # print(targets)
+        #print(targets[0])
 
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         gray.astype(np.uint8)
@@ -115,7 +117,7 @@ def test_smoothMotion():
         if len(detections) > 0:
             apriltag.refine_tags(detections, robo.globalPose, 0.15)
         
-        apriltag.troubleshoot()
+        # apriltag.troubleshoot() # prints seen tags
 
         apriltag.plot_detections(robo.globalPose, graph1, graph2, graph3)
 
