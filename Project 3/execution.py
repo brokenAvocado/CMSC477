@@ -113,7 +113,7 @@ def test_smoothMotion():
         apriltag.draw_detections(img, detections)
 
         if len(detections) > 0:
-            apriltag.refine_tags(detections, robo.globalPose, 0.15)
+            apriltag.movingAvg_tags(detections, robo.globalPose, 5)
         
         apriltag.troubleshoot()
 

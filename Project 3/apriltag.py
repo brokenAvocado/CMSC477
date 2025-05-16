@@ -17,11 +17,44 @@ class AprilTagDetector: # Given
         self.boxRadius = self.boxWidth*2**0.5
         
         self.seenTags = []
-        self.relevantTags = {}
+        self.obstacles = {
+            7: [8, 9, 10],
+            8: [7, 9, 10],
+            9: [7, 8, 10],
+            10: [7, 8, 9],
+            11: [15, 19, 23],
+            15: [11, 19, 23],
+            19: [11, 15, 23],
+            23: [11, 15, 19],
+            12: [16, 20, 24],
+            16: [12, 20, 24],
+            20: [12, 16, 24],
+            24: [12, 16, 20],
+            13: [17, 21, 25],
+            17: [13, 21, 25],
+            21: [13, 17, 25],
+            25: [13, 17, 21],
+            14: [18, 22, 26],
+            18: [14, 22, 26],
+            22: [14, 18, 26],
+            26: [14, 18, 22],
+            33: [34, 37, 38],
+            34: [33, 37, 38],
+            37: [33, 34, 38],
+            38: [33, 34, 37],
+            40: [41, 44, 45],
+            41: [40, 44, 45],
+            44: [40, 41, 45],
+            45: [40, 41, 44],
+            27: [28, 30, 31],
+            28: [27, 30, 31],
+            30: [27, 28, 31],
+            31: [27, 28, 30]
+        }
+        self.obstaclesX = {}
+        self.obstaclesY = {}
         self.obstaclesPointers = {}
-
-    def troubleshoot(self):
-        print(f"Seen tags: {self.seenTags}, Obstacles: {self.relevantTags}")
+        self.obstaclePos = {}
 
     def find_tags(self, frame_gray):
         '''
@@ -31,33 +64,87 @@ class AprilTagDetector: # Given
             camera_params=self.camera_params, tag_size=self.marker_size_m)
         return detections
     
-    def refine_tags(self, detections, robot_global_pose, tol=0.1):
+    def troubleshoot(self):
+        print(f"Obstacle")
+    
+    def refine_tags(self, detection, robot_global_pose, window):
         '''
-        Using positional data, will detect if the tag is a new tag and will check if it's
-        a tag from a box the robot has seen before
+        Using positional data, will detect if the tag is a new tag and make an empty
+        array inside a dictionary.
 
-        Tags are always put into a list of "seen" tags and tags that both haven't been seen
-        and are close enough to another tag will average the box's global position
+        For existing tags, fill the array corresponding to that tag in the dictionary
+        unitl a window is reached
+
+        Reset the pointer based on the window
         '''
-        newObstacle = True
-        for tag in detections:
-            if not tag.tag_id in self.seenTags: # For tags that are seen for the first time
-                self.seenTags.append(tag.tag_id)
+        
+        id = detection.tag_id
+        boxPosition = self.get_box_global(detection, robot_global_pose)
 
-                pose = self.get_box_global(tag, robot_global_pose)
-                pose = np.array(pose)
+        # If this is a new pointer, make the pointer start from 0 and a new array
+        if id not in self.obstaclesPointers:
+            self.obstaclesPointers[id] = 0
+            self.obstaclesX[id] = [boxPosition[0]]
+            self.obstaclesY[id] = [boxPosition[1]]
+        else:
+            self.obstaclesPointers[id] = self.obstaclesPointers[id] + 1
+            if len(self.obstaclesY) < window:
+                self.obstaclesX[id] = self.obstaclesX[id].append(boxPosition[0])
+                self.obstaclesY[id] = self.obstaclesY[id].append(boxPosition[1])
+            else:
+                self.obstaclesX[id][self.obstaclesPointers[id]] = boxPosition[0]
+                self.obstaclesY[id][self.obstaclesPointers[id]] = boxPosition[1]
 
-                if self.relevantTags: # Check if not empty
-                    for ob_key in self.relevantTags:
-                        pose_stored = self.relevantTags[ob_key]
-                        if np.linalg.norm(pose-pose_stored) <= tol:
-                            self.relevantTags[ob_key] = (pose + pose_stored)/2
-                            newObstacle = False
-                    if newObstacle:
-                        self.relevantTags[tag.tag_id] = pose
-                else:
-                    self.relevantTags[tag.tag_id] = pose
+            if self.obstaclesPointers[id] >= window:
+                self.obstaclesPointers[id] = 0
 
+    def movingAvg_tags(self, detections, robot_global_pose, window = 5):
+        '''
+        If the array is a valid size, the moving average for the obstacle is calculated
+
+        Generalizes from companion tags and compiles it into one values for each box (in global coords)
+        '''
+        for detection in detections:
+            id = detection.tag_id
+            changeAvg = False
+
+            self.refine_tags(detection, robot_global_pose, window)
+            
+            # Use the companion dictionary to find if the AprilTag is already logged in obstacles
+            companions = self.obstacles[id]
+
+            if id not in self.obstaclePos:
+                for companion_id in companions:
+                    # If one of the companion ID is found, then break out of the for loop
+                    if companion_id in self.obstaclePos:
+                        break
+
+                    # If none of the companion ID matches, then turn this boolean on
+                    changeAvg = True
+            else:
+                changeAvg = True
+            
+            if changeAvg and len(self.obstaclesX[id]) == window:
+                # Update the existing dictionary entry
+                allId = [id]
+                allId.extend(companions)
+                self.obstaclePos[id] = self.average(allId)
+                    
+    def average(self, allId):
+        '''
+        Performs a sample average based on all the tags related to the box
+        '''
+        totalSumX = 0
+        totalSumY = 0
+        length = 0
+
+        for tags in allId:
+            totalSumX += self.obstaclesX[tags]
+            totalSumY += self.obstaclesY[tags]
+            length = length(self.obstaclesX[tags])
+
+        return [totalSumX/(4*length), totalSumY/(4*length)]
+            
     def get_box_relative(self, detection):
         '''
         Returns relative positional and rotational data from a detection
@@ -118,15 +205,6 @@ class AprilTagDetector: # Given
 
     #     for tags in detection:
     
-    def movingAverage(self, data, window):
-        '''
-        Calculates the average of a frame of data
-        '''
-        sum = 0
-        for ind, points in enumerate(data):
-            sum += points
-            if ind >= window:
-                return sum/window
 
     def closest(self, detections):
         closestDist = float('inf')
@@ -190,7 +268,7 @@ class AprilTagDetector: # Given
         # closeTag = self.closest(detections)
         
         # Do the following for all tags
-        for pos in list(self.relevantTags.values()):
+        for pos in list(self.obstaclePos.values()):
             plot_x.append(pos[0])
             plot_y.append(pos[1])
 
