@@ -31,7 +31,7 @@ class motion:
         self.gripper = 'opened'
 
         # Robot State Init
-        self.globalOffset = [0.8, 0.72, 0]
+        self.globalOffset = [0.80, 0.72, 0]
         # self.globalOffset = [0,0,0]
         self.globalPose = [0,0,0]
         self.yawOffset = 0
@@ -54,7 +54,18 @@ class motion:
             self.yawOffset = -yaw
             self.yawInit = True    
         self.globalPose[2] = -yaw - self.yawOffset - 90
-        # print(f"Raw yaw: {yaw}")
+        # print(f"Raw yaw: {yaw}     GlobalPose2: {self.globalPose[2]}")
+        # if yaw > -180 and yaw < 86:
+            # fixedYaw = self.map_range(yaw, -180, -86, -86, -180)
+            #print(f"Raw yaw: {yaw}     GlobalPose2: {self.globalPose[2]}     FixedYaw: {fixedYaw}")
+            # self.globalPose[2] = fixedYaw
+        # elif yaw > -86 and yaw < 180:
+            # fixedYaw = self.map_range(yaw, -86, 180, 180, -86)
+            #print(f"Raw yaw: {yaw}     GlobalPose2: {self.globalPose[2]}     FixedYaw: {fixedYaw}")
+            # self.globalPose[2] = fixedYaw
+
+    def map_range(self, x, in_min, in_max, out_min, out_max):
+      return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
             
     def printStatement(self,pos_info):
         x, y, z = pos_info
@@ -97,17 +108,20 @@ class motion:
         print(f'1: {angle1}   2: {angle2}   3: {angle3}')
 
     def stow_arm(self): # Stows the arm back to its original position
-        self.ep_arm.moveto(82, 41).wait_for_completed()
+        self.ep_arm.moveto(82, 41).wait_for_completed(timeout=3)
         self.stowed = True
 
     def ready_arm(self): # Readies the arm to approach an object
-        self.ep_arm.moveto(185, -75).wait_for_completed()
+        print("ARM LOWER")
+        self.ep_arm.moveto(185, -75).wait_for_completed(timeout=3)
+        self.ep_gripper.open(100)
         self.stowed = False
+        print("ARM DONE")
 
     def pickup(self): # Picks up an object (lowers arm slightly, grips, raises)
         self.grasp()
         time.sleep(1)
-        self.ep_arm.moveto(182, -38).wait_for_completed()
+        self.ep_arm.moveto(182, -38).wait_for_completed(timeout=3)
 
     def grasp(self):
         self.ep_gripper.close(100)
@@ -116,6 +130,8 @@ class motion:
         time.sleep(1)
 
     def release(self):
+        self.ep_gripper.open(100)
+        self.ep_gripper.open(100)
         self.ep_gripper.open(100)
 
     def arctan2Test(self, target_x, target_y):
@@ -152,7 +168,7 @@ class motion:
 
         self.ep_chassis.drive_speed(x=vel_x, y=0, z=vel_z, timeout=0.1)
 
-        print(f"Goal: {target_z}, Current: {self.globalPose[2]}")
+        #print(f"Goal: {target_z}, Current: {self.globalPose[2]}, CurrentVel: {vel_z}")
 
         if abs(dist_rel) < 0.1:
             vel_x = 0
@@ -175,16 +191,12 @@ class motion:
         '''
         Takes global orientation angle and will point in that direction
         '''
-        flipped = False
-        diff = target_z-self.globalPose[2]
+        diff = (target_z - self.globalPose[2] + 180) % 360 - 180
+        direction = -1 if diff > 0 else 1
+        if False:
+            2
+
         if abs(diff) > rotate_tol:
-            # if 180-abs(target_z) < flipTol:
-            #     flipped = True
-
-            # if not flipped:
-            if diff < 0:
-                direction = 1 # Rotate clockwise
-
             return direction*speedMult*(diff)**2
         else:
             return 0
