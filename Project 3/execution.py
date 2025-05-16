@@ -142,8 +142,9 @@ def show_camera_feed():
 
 def doarmstuff():
     # robo.get_gripper_status()
-    robo.ready_arm()
-    robo.release()
+    robo.stow_arm()
+    # robo.ready_arm()
+    # robo.release()
 
 if __name__ == "__main__":
     # Robot Init
