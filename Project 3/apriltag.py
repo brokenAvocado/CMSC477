@@ -65,7 +65,7 @@ class AprilTagDetector: # Given
         return detections
     
     def troubleshoot(self):
-        print(f"Obstacle")
+        print(f"Obstacle Pointers {self.obstaclesPointers} Obstacle Pos {self.obstaclePos}")
     
     def refine_tags(self, detection, robot_global_pose, window):
         '''
@@ -87,13 +87,18 @@ class AprilTagDetector: # Given
             self.obstaclesX[id] = [boxPosition[0]]
             self.obstaclesY[id] = [boxPosition[1]]
         else:
-            self.obstaclesPointers[id] = self.obstaclesPointers[id] + 1
-            if len(self.obstaclesY) < window:
-                self.obstaclesX[id] = self.obstaclesX[id].append(boxPosition[0])
-                self.obstaclesY[id] = self.obstaclesY[id].append(boxPosition[1])
+
+            if len(self.obstaclesX[id]) < window:
+                self.obstaclesX[id].append(boxPosition[0])
             else:
                 self.obstaclesX[id][self.obstaclesPointers[id]] = boxPosition[0]
+
+            if len(self.obstaclesY[id]) < window:
+                self.obstaclesY[id].append(boxPosition[1])
+            else:
                 self.obstaclesY[id][self.obstaclesPointers[id]] = boxPosition[1]
+
+            self.obstaclesPointers[id] += 1
 
             if self.obstaclesPointers[id] >= window:
                 self.obstaclesPointers[id] = 0
@@ -124,7 +129,7 @@ class AprilTagDetector: # Given
             else:
                 changeAvg = True
             
-            if changeAvg and len(self.obstaclesX[id]) == window:
+            if changeAvg and self.obstaclesX[id] and len(self.obstaclesX[id]) == window:
                 # Update the existing dictionary entry
                 allId = [id]
                 allId.extend(companions)
@@ -137,13 +142,16 @@ class AprilTagDetector: # Given
         totalSumX = 0
         totalSumY = 0
         length = 0
+        n = 0 # Number of valid dictionaries
 
         for tags in allId:
-            totalSumX += self.obstaclesX[tags]
-            totalSumY += self.obstaclesY[tags]
-            length = length(self.obstaclesX[tags])
+            if tags in self.obstaclesX and tags in self.obstaclesY:
+                totalSumX += np.sum(self.obstaclesX[tags])
+                totalSumY += np.sum(self.obstaclesY[tags])
+                length = len(self.obstaclesX[tags])
+                n += 1
 
-        return [totalSumX/(4*length), totalSumY/(4*length)]
+        return [totalSumX/(n*length), totalSumY/(n*length)]
             
     def get_box_relative(self, detection):
         '''
@@ -192,7 +200,7 @@ class AprilTagDetector: # Given
         box_dist = (box_posX**2+box_posY**2)**0.5
         final_posX = global_posX + box_dist*np.sin(np.pi/180*box_g_rot)
         final_posY = global_posY + box_dist*np.cos(np.pi/180*box_g_rot)
-        # print(f"Box Position {detection.tag_id}: {box_posX}, {box_posY}, {box_g_rot}, {box_rot} ")
+        print(f"Box Position {detection.tag_id}: {box_posX}, {box_posY}, {box_g_rot}, {box_rot} ")
         # print(f"Robot Position: {global_posX}, {global_posY}, {global_rot}")
 
         return [final_posX, final_posY]

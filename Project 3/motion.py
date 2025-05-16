@@ -31,7 +31,7 @@ class motion:
         self.gripper = 'opened'
 
         # Robot State Init
-        self.globalOffset = [0.67, 0.49, 0]
+        self.globalOffset = [0.8, 0.72, 0]
         # self.globalOffset = [0,0,0]
         self.globalPose = [0,0,0]
         self.yawOffset = 0
