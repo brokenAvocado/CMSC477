@@ -3,6 +3,8 @@ import cv2
 import numpy as np
 import time
 import traceback
+import math
+import random
 
 from queue import Empty
 import time
@@ -30,8 +32,8 @@ class motion:
         self.stowed = True
         self.gripper = 'opened'
 
-        # Robot State Init
-        self.globalOffset = [0.80, 0.72, 0]
+        # Robot State Initz
+        self.globalOffset = [0.72, 0.8, 0]
         # self.globalOffset = [0,0,0]
         self.globalPose = [0,0,0]
         self.yawOffset = 0
@@ -200,7 +202,66 @@ class motion:
             return direction*speedMult*(diff)**2
         else:
             return 0
-            
+
+    def avoid_tag(self, obstacles, front_distance=0.6, window_width=0.6, offset_distance=0.4):
+        """
+        Avoid ArUco tags by checking if they're in front, and move to the
+        side opposite the robot's lateral position relative to the tag.
+
+        Returns:
+            (bool, (x, y)) — whether to move, and coordinates to move to
+        """
+        x, y, angle_deg = self.globalPose
+        theta = math.radians(angle_deg + 90)
+
+        # Robot heading vector
+        heading_x = math.cos(theta)
+        heading_y = math.sin(theta)
+
+        # Perpendicular vector to the left
+        left_x = -math.sin(theta)
+        left_y = math.cos(theta)
+
+        for tag_id, (ox, oy) in obstacles.items():
+            dx = ox - x
+            dy = oy - y
+
+            # Distance from robot to tag in robot's heading and lateral directions
+            forward_dist = dx * heading_x + dy * heading_y
+            lateral_dist = dx * left_x + dy * left_y
+
+            # print(f"[DEBUG] Tag {tag_id}: forward={forward_dist:.2f}, lateral={lateral_dist:.2f}")
+
+            if 0 <= forward_dist <= front_distance and abs(lateral_dist) <= window_width / 2:
+                # Unit vector from robot to tag
+                tag_dx = ox - x
+                tag_dy = oy - y
+                tag_dist = math.hypot(tag_dx, tag_dy)
+                dir_x = tag_dx / tag_dist
+                dir_y = tag_dy / tag_dist
+
+                # Perpendicular direction (left of robot-to-tag vector)
+                perp_left_x = -dir_y
+                perp_left_y = dir_x
+
+                # Decide direction to move based on whether robot is to left or right of tag
+                sign = -1 if lateral_dist < 0 else 1  # if robot is right of tag, move right (+1)
+
+                move_to_x = x + sign * perp_left_x * offset_distance
+                move_to_y = y + sign * perp_left_y * offset_distance
+
+                print(f"  >> Tag {tag_id} ahead. Robot is {'left' if lateral_dist > 0 else 'right'} of tag. Moving to ({move_to_x:.2f}, {move_to_y:.2f})")
+                return True, [move_to_x, move_to_y]
+
+        return False, None
+
+
+
+
+    def normalize_angle(self, angle):
+        """Normalize angle to be between -pi and pi."""
+        return math.atan2(math.sin(angle), math.cos(angle))
+
     def teleop(self):
         move_speed = 0.3
         rotate_speed = 45

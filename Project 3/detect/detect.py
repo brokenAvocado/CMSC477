@@ -14,9 +14,12 @@ from sklearn.cluster import KMeans
 
 class Detector:
     def __init__(self, ep_chassis):
-        self.cone_model = YOLO("C:\\Users\\ninja\\Documents\\College\\CMSC477\\Project 3\\detect\\cone_model\\weights\\best.pt")
-        self.bot_model = YOLO("C:\\Users\\ninja\\Documents\\College\\CMSC477\\Project 3\\detect\\bot_model\\weights\\best.pt")
-        self.closet_brick_model = YOLO("C:\\Users\\ninja\\Documents\\College\\CMSC477\\Project 3\\detect\\closet_brick_model\\weights\\best.pt")
+        # self.cone_model = YOLO("C:\\Users\\ninja\\Documents\\College\\CMSC477\\Project 3\\detect\\cone_model\\weights\\best.pt")
+        # self.bot_model = YOLO("C:\\Users\\ninja\\Documents\\College\\CMSC477\\Project 3\\detect\\bot_model\\weights\\best.pt")
+        # self.closet_brick_model = YOLO("C:\\Users\\ninja\\Documents\\College\\CMSC477\\Project 3\\detect\\closet_brick_model\\weights\\best.pt")
+        self.cone_model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\detect\\cone_model\\weights\\best.pt")
+        self.bot_model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\detect\\bot_model\\weights\\best.pt")
+        self.closet_brick_model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\detect\\closet_brick_model\\weights\\best.pt")
         self.shape = [720, 1280]
 
         self.ep_chassis = ep_chassis
@@ -307,10 +310,10 @@ class Detector:
         if offset < 0:
             print("Brick is left — turning left")
             # chassis.rotate(angle=-5)  # Turn left 5 degrees
-            self.ep_chassis.drive_speed(x=0, y=0, z=-5, timeout=0.1)
+            self.ep_chassis.drive_speed(x=0, y=0, z=-10, timeout=0.1)
         else:
             print("Brick is right — turning right")
-            self.ep_chassis.drive_speed(x=0, y=0, z=5, timeout=0.1)
+            self.ep_chassis.drive_speed(x=0, y=0, z=10, timeout=0.1)
 
     def approach(self, cy, tolerance=200):
         frame_height = self.frame_shape[0]
@@ -320,13 +323,17 @@ class Detector:
 
         if cy < bottom_threshold:
             print(f"Brick is not close enough (cy = {cy}) — driving forward.")
-            self.ep_chassis.drive_speed(x=0.05, y=0, z=0)
+            self.ep_chassis.drive_speed(x=0.07, y=0, z=0)
 
             return False
         else:
             print(f"Brick is within approach threshold (cy = {cy}) — stopping.")
             self.ep_chassis.drive_speed(x=0, y=0, z=0)
             return True
+        
+    def backup(self):
+        self.ep_chassis.drive_speed(x=-0.1, y=0, z=0)
+        time.sleep(1)
 
     # Draw Functions #
     def draw_lines_between_pairs(self, frame, box_centers):

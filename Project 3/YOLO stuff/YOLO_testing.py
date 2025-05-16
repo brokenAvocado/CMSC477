@@ -774,17 +774,17 @@ class YOLO_tester:
 
 def main():
     test = YOLO_tester()
-    test.brick_detect_bot()
+    # test.brick_detect_bot()
     
     # test.collect_images_robot()
     # test.collect_video_robot()
-    # test.split()
+    test.split()
     #test.laptop_cam()
     #test.combine_and_rename_images(["bricks0", "bricks1"])
     #test.brick_detect_test("video_0.mp4")
     # test.run_model_on_video_gray("video_0.mp4")
     #test.augment_images()
-    #test.to_gray()
+    # test.to_gray()
 
 if __name__ == "__main__":
     main()
