@@ -13,11 +13,21 @@ from sklearn.cluster import KMeans
 
 
 class Detector:
-    def __init__(self):
+    def __init__(self, sample_frame, ep_chassis):
+        self.cone_model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\detect\\cone_model\\weights\\best.pt")
+        self.bot_model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\detect\\bot_model\\weights\\best.pt")
+        self.closet_brick_model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\detect\\closet_brick_model\\weights\\best.pt")
+
+        self.ep_chassis = ep_chassis
+
+        self.frame_shape = sample_frame.shape
         return
     
 
-    def get_cones_simple(self, model, frame):
+    def get_cones_simple(self, frame, model=None):
+        if model == None:
+            model = self.cone_model
+
         # Grayscaling
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         gray_bgr = cv2.cvtColor(gray_frame, cv2.COLOR_GRAY2BGR)
@@ -37,7 +47,10 @@ class Detector:
             
         cv2.imshow('frame', frame)
 
-    def get_cones_no_merge(self, model, frame):
+    def get_cones_no_merge(self, frame, model=None):
+        if model == None:
+            model = self.cone_model
+
         # Grayscaling
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         gray_bgr = cv2.cvtColor(gray_frame, cv2.COLOR_GRAY2BGR)
@@ -81,7 +94,11 @@ class Detector:
         return final_boxes, box_centers_sorted
 
     # Processing Functions #
-    def get_cones(self, model, frame):
+    # Cones Detection/Triangulation
+    def get_cones(self, frame, model=None):
+        if model == None:
+            model = self.cone_model
+
         # Grayscaling
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         gray_bgr = cv2.cvtColor(gray_frame, cv2.COLOR_GRAY2BGR)
@@ -208,7 +225,11 @@ class Detector:
         corners = list(set(group1) & set(group2))
         return corners
     
-    def get_bots(self, model, frame):
+    # Bot Detection #
+    def get_bots(self, frame, model=None):
+        if model == None:
+            model = self.bot_model
+
         # Run YOLO prediction
         results = model.predict(source=frame, show=False)
         boxes = []
@@ -224,7 +245,87 @@ class Detector:
 
         return boxes
 
+    # Brick Detection #
+    def get_closet_bricks(self, frame, model=None):
+        if model == None:
+            model = self.cone_model
 
+        # Run YOLO prediction
+        results = model.predict(source=frame, show=False)
+        boxes = []
+
+        # Extract boxes from the first result
+        if results and len(results) > 0:
+            result = results[0]
+            if hasattr(result, 'boxes') and result.boxes is not None:
+                for box in result.boxes:
+                    # Get [x1, y1, x2, y2] as integers
+                    xyxy = box.xyxy.cpu().numpy().flatten().astype(int)
+                    boxes.append(tuple(xyxy))  # Add as tuple (x1, y1, x2, y2)
+
+        return boxes
+
+    def closest_brick(self, boxes):
+        if not boxes:
+            return None
+        
+        frame_shape = self.frame_shape
+
+        frame_height, frame_width = frame_shape[:2]
+        bottom_center = (frame_width // 2, frame_height)  # (x, y) at bottom center
+
+        min_distance = float('inf')
+        closest = None
+
+        for box in boxes:
+            x1, y1, x2, y2 = box.xyxy.cpu().numpy().flatten().astype(int)
+            center_x = (x1 + x2) // 2
+            center_y = (y1 + y2) // 2
+
+            # Compute Euclidean distance to bottom center
+            dist = np.sqrt((center_x - bottom_center[0])**2 + (center_y - bottom_center[1])**2)
+
+            if dist < min_distance:
+                min_distance = dist
+                closest = (x1, y1, x2, y2)
+
+        cx = (closest[0] + closest[2]) // 2
+        cy = (closest[1] + closest[3]) // 2
+
+        return cx, cy
+    
+    def align_to_brick(self, cx, threshold=10):
+        frame_width = self.frame_shape[1]
+        center_x = frame_width // 2
+        offset = cx - center_x
+
+        if abs(offset) < threshold:
+            print("Brick is centered.")
+            return True# No turn needed
+
+        if offset < 0:
+            print("Brick is left — turning left")
+            # chassis.rotate(angle=-5)  # Turn left 5 degrees
+            self.ep_chassis.drive_speed(x=0, y=0, z=-5, timeout=0.1)
+        else:
+            print("Brick is right — turning right")
+            self.ep_chassis.drive_speed(x=0, y=0, z=5, timeout=0.1)
+
+    def approach(self, cy, frame_height, tolerance=200):
+        frame_height = self.frame_shape[0]
+
+        # Initialize robot if needed
+        bottom_threshold = frame_height - tolerance
+
+        if cy < bottom_threshold:
+            print(f"Brick is not close enough (cy = {cy}) — driving forward.")
+            self.ep_chassis.drive_speed(x=0.05, y=0, z=0)
+
+            return False
+        else:
+            print(f"Brick is within approach threshold (cy = {cy}) — stopping.")
+
+            return True
 
     # Draw Functions #
     def draw_lines_between_pairs(self, frame, box_centers):
@@ -243,6 +344,39 @@ class Detector:
             cv2.circle(frame, (x, y), radius=10, color=(255, 0, 0), thickness=2)
 
 
+    # Brick Detection Control Loop #
+    # BEFORE RUNNING THIS THE GRIPPER MUST BE LOWERED AND THE BOT MUST BE FACING THE CLOSET
+    def run_closet_bricks(self, ep_camera):
+        while True:
+            try:
+                frame = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
+            except Empty:
+                time.sleep(0.001)
+                continue
+
+            brick_boxes = self.get_closet_bricks(frame)
+
+            closest_cx, closest_cy = self.closest_brick(brick_boxes)
+
+            aligned = self.align_to_brick(closest_cx)
+            if aligned:
+                approached = self.approach(closest_cy)
+                if approached:
+                    break
+
+            for box in brick_boxes:
+                x1, y1, x2, y2 = box
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color=(0, 255, 0), thickness=2)
+
+            cv2.imshow("Detection Frame", frame)
+
+            key = cv2.waitKey(20) & 0xFF
+
+            if key == ord('q'):
+                break
+
+
+
 # Test Control Loop #
 def main():
     test = Detector()
@@ -253,11 +387,6 @@ def main():
     if not cap.isOpened():
         print(f"Error: Unable to open video file: {video_path}")
         return
-
-    print('Loading models...')
-    cone_model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\detect\\cone_model\\weights\\best.pt")
-    bot_model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\detect\\bot_model\\weights\\best.pt")
-
 
     while True:
         # Get next frame
@@ -270,25 +399,30 @@ def main():
         if frame is None:
             continue
 
-        cone_boxes, cone_box_centers = test.get_cones(cone_model, frame)
+        cone_boxes, cone_box_centers = test.get_cones(frame)
 
         for box in cone_boxes:
             x1, y1, x2, y2 = box
             cv2.rectangle(frame, (x1, y1), (x2, y2), color=(0, 0, 255), thickness=2)
 
-        # test.draw_lines_between_pairs(frame, box_centers)
-
-        # group1, group2 = test.group_slopes(box_centers)
-
-        # corners = test.get_corners(group1, group2)
-
-        # test.draw_cone_corners(frame, corners)
-
-        bot_boxes = test.get_bots(bot_model, frame)
+        bot_boxes = test.get_bots(frame)
 
         for box in bot_boxes:
             x1, y1, x2, y2 = box
             cv2.rectangle(frame, (x1, y1), (x2, y2), color=(255, 0, 0), thickness=2)
+
+        brick_boxes = test.get_closet_bricks(frame)
+
+        closest_cx, closest_cy = test.closest_brick(brick_boxes)
+
+        aligned = test.align_to_brick(closest_cx)
+        if aligned:
+            test.approach(closest_cy)
+
+        for box in brick_boxes:
+            x1, y1, x2, y2 = box
+            cv2.rectangle(frame, (x1, y1), (x2, y2), color=(0, 255, 0), thickness=2)
+
 
         # Display Capture
         cv2.imshow("YOLO Detection on Grayscale Video", frame)
