@@ -18,6 +18,8 @@ class AprilTagDetector: # Given
         
         self.seenTags = []
         self.obstacles = {
+            32: [],
+            46: [],
             7: [8, 9, 10],
             8: [7, 9, 10],
             9: [7, 8, 10],
@@ -212,9 +214,8 @@ class AprilTagDetector: # Given
     #     '''
 
     #     for tags in detection:
-    
 
-    def closest(self, detections):
+    def closestPosition(self, detections):
         closestDist = float('inf')
         closestTag = 0
 
@@ -227,7 +228,7 @@ class AprilTagDetector: # Given
         if closestTag == 0:
             return None
         
-        return closestTag
+        return self.get_box_relative(closestTag)
     
     '''
     Visualization Scripts

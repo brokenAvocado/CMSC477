@@ -33,12 +33,13 @@ class motion:
         self.gripper = 'opened'
 
         # Robot State Initz
-        self.globalOffset = [0.72, 0.8, 0]
+        self.globalOffset = [0.5, 0.5, 0]
         # self.globalOffset = [0,0,0]
         self.globalPose = [0,0,0]
         self.yawOffset = 0
         self.yawInit = False
         self.orientationSet = False
+        self.vel_y = 0
 
         self.lastTargetZ = -90
 
@@ -168,7 +169,7 @@ class motion:
         vel_z = self.rotate_to(target_z)
         vel_x = speed_mult*np.arctan(dist_rel)+speed_offset
 
-        self.ep_chassis.drive_speed(x=vel_x, y=0, z=vel_z, timeout=0.1)
+        self.ep_chassis.drive_speed(x=vel_x, y=self.vel_y, z=vel_z, timeout=0.1)
 
         #print(f"Goal: {target_z}, Current: {self.globalPose[2]}, CurrentVel: {vel_z}")
 
@@ -177,6 +178,22 @@ class motion:
             return True
         else:
             return False
+        
+    def avoidTag(self, tagPose, offset=0.266, speed_mult = 1, dist_thres = 0.20):
+        if tagPose != None:
+            sideDist = tagPose[1]
+            fwdDist = tagPose[0]
+            direction = -sideDist/abs(sideDist)
+            print(f"Tag Position {sideDist} and Direction {direction}")
+            if abs(fwdDist) < dist_thres: 
+                self.vel_y = speed_mult*np.arctan(direction*(abs(sideDist)-offset))
+            else:
+                self.vel_y = 0
+        else:
+            self.vel_y = 0
+
+        # self.ep_chassis.drive_speed(x=0, y=vel_y, z=0, timeout=0.1)
+
         
     def sequence(self, targets):
         '''
@@ -202,6 +219,11 @@ class motion:
             return direction*speedMult*(diff)**2
         else:
             return 0
+        
+    def rotate180(self):
+        self.ep_chassis.drive_speed(x=0, y=0, z=60, timeout=4)
+        time.sleep(3)
+        self.ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.1)
 
     def avoid_tag(self, obstacles, front_distance=0.6, window_width=0.6, offset_distance=0.4):
         """
@@ -273,9 +295,7 @@ class motion:
             if vel_z == 0:
                 return
             else:
-                self.ep_chassis.drive_speed(x=0, y=0, z=vel_z, timeout=0.1)
-
-            
+                self.ep_chassis.drive_speed(x=0, y=0, z=vel_z*1.5, timeout=0.1)
 
     def teleop(self):
         move_speed = 0.3

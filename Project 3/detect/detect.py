@@ -17,9 +17,9 @@ class Detector:
         # self.cone_model = YOLO("C:\\Users\\ninja\\Documents\\College\\CMSC477\\Project 3\\detect\\cone_model\\weights\\best.pt")
         # self.bot_model = YOLO("C:\\Users\\ninja\\Documents\\College\\CMSC477\\Project 3\\detect\\bot_model\\weights\\best.pt")
         # self.closet_brick_model = YOLO("C:\\Users\\ninja\\Documents\\College\\CMSC477\\Project 3\\detect\\closet_brick_model\\weights\\best.pt")
-        self.cone_model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\detect\\cone_model\\weights\\best.pt")
-        self.bot_model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\detect\\bot_model\\weights\\best.pt")
-        self.closet_brick_model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\detect\\closet_brick_model_gray\\weights\\best.pt")
+        self.cone_model = YOLO("detect\\cone_model\\weights\\best.pt")
+        self.bot_model = YOLO("detect\\bot_model\\weights\\best.pt")
+        self.closet_brick_model = YOLO("detect\\closet_brick_model_gray\\weights\\best.pt")
         self.shape = [720, 1280]
 
         self.ep_chassis = ep_chassis
@@ -334,7 +334,7 @@ class Detector:
             return True
         
     def backup(self):
-        self.ep_chassis.drive_speed(x=-0.5, y=0, z=0)
+        self.ep_chassis.drive_speed(x=-0.3, y=0, z=0)
         time.sleep(1)
 
     # Draw Functions #
