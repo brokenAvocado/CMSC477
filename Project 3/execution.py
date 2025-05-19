@@ -122,20 +122,16 @@ def test_smoothMotion():
 
         apriltag.plot_detections(robo.globalPose, graph1, graph2, graph3)
 
-        condition, coords = robo.avoid_tag(apriltag.relevantTags)
-        if condition:
-            targets.insert(0, coords)
-
         # Display the captured frame
         cv2.imshow('Camera', img)
 
         if cv2.waitKey(1) == ord('z'):
             break
 
-CLOSET_ONE = [2.8, 1.0]
-CLOSET_TWO = [0.35, 5.15]
-CORRIDOR_ONE = [1.8, 2.7]
-CORRIDOR_TWO = [1.8, 3.6]
+CLOSET_ONE = [3, 1.0]
+CLOSET_TWO = [0.35, 5.2]
+CORRIDOR_ONE = [1.8, 2.6]
+CORRIDOR_TWO = [1.8, 3.8]
 def merged_brick():
     robo.stow_arm()
 
@@ -164,6 +160,7 @@ def merged_brick():
         if curr_target == CLOSET_ONE and ((robo.globalPose[0]-CLOSET_ONE[0])**2+(robo.globalPose[1]-CLOSET_ONE[1])**2)**0.5 < .3:
             print("CLOSET ONE FIND")
             robo.ready_arm()
+            robo.align_with_closet(CLOSET_ONE)
             detector.run_closet_bricks(robo.ep_camera)
             print("CLOSET ONE PICKUP")
             robo.pickup()
@@ -186,11 +183,11 @@ def merged_brick():
         apriltag.draw_detections(img, detections)
 
         if len(detections) > 0:
-            apriltag.refine_tags(detections, robo.globalPose, 0.15)
+            apriltag.movingAvg_tags(detections, robo.globalPose)
         
         # apriltag.troubleshoot() # prints seen tags
 
-        apriltag.plot_detections(robo.globalPose, graph1, graph2, graph3)
+        apriltag.plot_detections(robo.globalPose, graph1, graph2, graph3)            
 
         # Display the captured frame
         cv2.imshow('Camera', img)
@@ -211,15 +208,17 @@ def test_avoid():
             time.sleep(0.001)
             continue
 
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        gray.astype(np.uint8)
-        detections = apriltag.find_tags(gray)
-        apriltag.draw_detections(img, detections)
+        # gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        # gray.astype(np.uint8)
+        # detections = apriltag.find_tags(gray)
+        # apriltag.draw_detections(img, detections)
 
-        if len(detections) > 0:
-            apriltag.refine_tags(detections, robo.globalPose, 0.1)
+        # if len(detections) > 0:
+        #     apriltag.movingAvg_tags(detections, robo.globalPose)
         
         # apriltag.troubleshoot() # prints seen tags
+
+        print(f'X: {robo.globalPose[0]}, Y: {robo.globalPose[2]}')
 
         apriltag.plot_detections(robo.globalPose, graph1, graph2, graph3)
 
@@ -253,6 +252,48 @@ def doarmstuff():
     # robo.ready_arm()
     # robo.release()
 
+def location_test():
+    robo.stow_arm()
+
+    robo.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_720P)
+    graph1, graph2, graph3 = apriltag.initGraph()
+    robo.get_robotPosition()
+    robo.get_robotAngle()
+
+    targets = [CLOSET_ONE, 
+               CORRIDOR_ONE, CORRIDOR_TWO, CLOSET_TWO, CORRIDOR_TWO, CORRIDOR_ONE, CLOSET_ONE,
+               CORRIDOR_ONE, CORRIDOR_TWO, CLOSET_TWO, CORRIDOR_TWO, CORRIDOR_ONE, CLOSET_ONE,
+               CORRIDOR_ONE, CORRIDOR_TWO, CLOSET_TWO, CORRIDOR_TWO, CORRIDOR_ONE, CLOSET_ONE
+               ]
+
+    while True:
+        try:
+            img = robo.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
+        except Empty:
+            time.sleep(0.001)
+            continue
+
+        # img = cv2.resize(img, (640, 360))
+        # gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        # gray.astype(np.uint8)z
+        # detections = apriltag.find_tags(gray)
+        # apriltag.draw_detections(img, detections)
+
+        # if len(detections) > 0:
+        #     apriltag.movingAvg_tags(detections, robo.globalPose)
+        
+        # apriltag.troubleshoot() # prints seen tags
+
+        apriltag.plot_detections(robo.globalPose, graph1, graph2, graph3) 
+
+        print(f'X: {robo.globalPose[0]}, Y: {robo.globalPose[1]}')           
+
+        # Display the captured frame
+        cv2.imshow('Camera', img)
+
+        if cv2.waitKey(1) == ord('z'):
+            break
+
 if __name__ == "__main__":
     # Robot Init
     robo = motion()
@@ -260,12 +301,13 @@ if __name__ == "__main__":
     detector = detect.Detector(robo.ep_chassis)
 
     try:
-        test_aprilTagGlobal()
+        # test_aprilTagGlobal()
         # test_smoothMotion()
-        # merged_brick()
+        merged_brick()
         # robo.arctan2Test(-0.065, .1)
         # robo.stow_arm()
         # test_avoid()
+        # location_test()
     except KeyboardInterrupt:
         pass
     except Exception as e:

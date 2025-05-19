@@ -142,7 +142,7 @@ class motion:
         '''
         print(180/np.pi*np.arctan2(target_x, target_y))
 
-    def go_to(self, target_x, target_y, flipTol = 0.5, speed_mult = 0.2, speed_offset=0.05):
+    def go_to(self, target_x, target_y, flipTol = 0.5, speed_mult = 0.4, speed_offset=0.05):
         '''
         Takes global x and y target positions and converts it to relative
         kinematic commands
@@ -255,12 +255,27 @@ class motion:
 
         return False, None
 
-
-
-
     def normalize_angle(self, angle):
         """Normalize angle to be between -pi and pi."""
         return math.atan2(math.sin(angle), math.cos(angle))
+
+    def align_with_closet(self, closet_coordinates):
+        while True:
+            bot_x = self.globalPose[0]
+            bot_y = self.globalPose[1]
+            closet_x = closet_coordinates[0]
+            closet_y = closet_coordinates[1]
+
+            angle = math.degrees(math.atan2(closet_y - bot_y, closet_x - bot_x)) - 90
+
+            vel_z = self.rotate_to(angle)
+
+            if vel_z == 0:
+                return
+            else:
+                self.ep_chassis.drive_speed(x=0, y=0, z=vel_z, timeout=0.1)
+
+            
 
     def teleop(self):
         move_speed = 0.3

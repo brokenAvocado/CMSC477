@@ -200,7 +200,7 @@ class AprilTagDetector: # Given
         box_dist = (box_posX**2+box_posY**2)**0.5
         final_posX = global_posX + box_dist*np.sin(np.pi/180*box_g_rot)
         final_posY = global_posY + box_dist*np.cos(np.pi/180*box_g_rot)
-        print(f"Box Position {detection.tag_id}: {box_posX}, {box_posY}, {box_g_rot}, {box_rot} ")
+        # print(f"Box Position {detection.tag_id}: {box_posX}, {box_posY}, {box_g_rot}, {box_rot} ")
         # print(f"Robot Position: {global_posX}, {global_posY}, {global_rot}")
 
         return [final_posX, final_posY]

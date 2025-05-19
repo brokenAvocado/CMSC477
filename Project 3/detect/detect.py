@@ -19,7 +19,7 @@ class Detector:
         # self.closet_brick_model = YOLO("C:\\Users\\ninja\\Documents\\College\\CMSC477\\Project 3\\detect\\closet_brick_model\\weights\\best.pt")
         self.cone_model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\detect\\cone_model\\weights\\best.pt")
         self.bot_model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\detect\\bot_model\\weights\\best.pt")
-        self.closet_brick_model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\detect\\closet_brick_model\\weights\\best.pt")
+        self.closet_brick_model = YOLO("C:\\Users\\Trevor\\Documents\\Python Scripts\\CMSC477\\Project 3\\detect\\closet_brick_model_gray\\weights\\best.pt")
         self.shape = [720, 1280]
 
         self.ep_chassis = ep_chassis
@@ -255,6 +255,8 @@ class Detector:
             model = self.closet_brick_model
 
         # Run YOLO prediction
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
         results = model.predict(source=frame, show=False)
         boxes = []
 
@@ -310,10 +312,10 @@ class Detector:
         if offset < 0:
             print("Brick is left — turning left")
             # chassis.rotate(angle=-5)  # Turn left 5 degrees
-            self.ep_chassis.drive_speed(x=0, y=0, z=-10, timeout=0.1)
+            self.ep_chassis.drive_speed(x=0, y=0, z=-7, timeout=0.1)
         else:
             print("Brick is right — turning right")
-            self.ep_chassis.drive_speed(x=0, y=0, z=10, timeout=0.1)
+            self.ep_chassis.drive_speed(x=0, y=0, z=7, timeout=0.1)
 
     def approach(self, cy, tolerance=200):
         frame_height = self.frame_shape[0]
@@ -332,7 +334,7 @@ class Detector:
             return True
         
     def backup(self):
-        self.ep_chassis.drive_speed(x=-0.1, y=0, z=0)
+        self.ep_chassis.drive_speed(x=-0.5, y=0, z=0)
         time.sleep(1)
 
     # Draw Functions #
