@@ -259,9 +259,10 @@ class AprilTagDetector: # Given
         # ax.add_patch(graph)
         graph2 = ax.plot([],[], 'o', markersize=15, color='red')[0]
         graph3 = ax.plot([],[], color='red')[0]
+        graph4 = ax.plot([],[], 's', color='blue')[0]
         ax.set(xlim=[-1, 5] ,ylim=[-1, 10])
         
-        return graph, graph2, graph3
+        return graph, graph2, graph3, graph4
     
     def draw_detections(self, frame, detections): # Given
         '''
@@ -279,7 +280,7 @@ class AprilTagDetector: # Given
             cv2.line(frame, top_left, bottom_right, color=(0, 0, 255), thickness=2)
             cv2.line(frame, top_right, bottom_left, color=(0, 0, 255), thickness=2)
     
-    def plot_detections(self, roboPose, graph1, graph2, graph3):
+    def plot_detections(self, roboPose, graph1, graph2, graph3, graph4, destination):
         '''
         (Visualization)
         Need to run initGraph for this to work
@@ -313,6 +314,9 @@ class AprilTagDetector: # Given
 
         graph3.set_xdata(vector_x)
         graph3.set_ydata(vector_y)
+
+        graph4.set_xdata(destination[0])
+        graph4.set_ydata(destination[1])
 
         # for i, label in enumerate(labels):
         #     plt.text(plot_x[i], plot_y[i], label, ha='center', va='bottom')

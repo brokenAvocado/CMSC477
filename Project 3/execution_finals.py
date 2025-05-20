@@ -10,6 +10,7 @@ from robomaster import robot
 from robomaster import camera
 import threading
 from detect import detect
+import os
 
 from motion import motion
 from apriltag import AprilTagDetector
@@ -128,9 +129,9 @@ def test_smoothMotion():
         if cv2.waitKey(1) == ord('z'):
             break
 
-CLOSET_ONE = [3, 0.9]
+CLOSET_ONE = [2.9, 1]
 CLOSET_ONE_CORNER1 = [3, 0.8]
-CLOSET_TWO = [0.4, 5.2]
+CLOSET_TWO = [0.8, 5.2]
 CLOSET_TWO_CORNER1 = [0.4, 5.5]
 CORRIDOR_ONE = [1.8, 2.6]
 INTER_CORRIDOR_ONE = [2.0, 1.95]
@@ -142,34 +143,18 @@ def merged_brick():
     robo.stow_arm()
 
     robo.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_720P)
-    graph1, graph2, graph3 = apriltag.initGraph()
+    graph1, graph2, graph3, graph4 = apriltag.initGraph()
     robo.get_robotPosition()
     robo.get_robotAngle()
     firstTime = True
+    pathComplete = False
     avoidTriggered = False
+    targetPointer = 0
 
-    targets = [CLOSET_ONE, INTER_CORRIDOR_ONE, CORRIDOR_ONE, CORRIDOR_TWO, INTER_CORRIDOR_TWO, CLOSET_TWO, INTER_CORRIDOR_TWO, CORRIDOR_TWO, CORRIDOR_ONE, INTER_CORRIDOR_ONE, 
-               CLOSET_ONE, INTER_CORRIDOR_ONE, CORRIDOR_ONE, CORRIDOR_TWO, INTER_CORRIDOR_TWO, CLOSET_TWO, INTER_CORRIDOR_TWO, CORRIDOR_TWO, CORRIDOR_ONE, INTER_CORRIDOR_ONE, 
-               CLOSET_ONE, INTER_CORRIDOR_ONE, CORRIDOR_ONE, CORRIDOR_TWO, INTER_CORRIDOR_TWO, CLOSET_TWO, INTER_CORRIDOR_TWO, CORRIDOR_TWO, CORRIDOR_ONE, INTER_CORRIDOR_ONE, 
-               CLOSET_ONE, INTER_CORRIDOR_ONE, CORRIDOR_ONE, CORRIDOR_TWO, INTER_CORRIDOR_TWO, CLOSET_TWO, INTER_CORRIDOR_TWO, CORRIDOR_TWO, CORRIDOR_ONE, INTER_CORRIDOR_ONE, 
-               CLOSET_ONE, INTER_CORRIDOR_ONE, CORRIDOR_ONE, CORRIDOR_TWO, INTER_CORRIDOR_TWO, CLOSET_TWO, INTER_CORRIDOR_TWO, CORRIDOR_TWO, CORRIDOR_ONE, INTER_CORRIDOR_ONE, 
-               CLOSET_ONE, INTER_CORRIDOR_ONE, CORRIDOR_ONE, CORRIDOR_TWO, INTER_CORRIDOR_TWO, CLOSET_TWO, INTER_CORRIDOR_TWO, CORRIDOR_TWO, CORRIDOR_ONE, INTER_CORRIDOR_ONE, 
-               CLOSET_ONE, INTER_CORRIDOR_ONE, CORRIDOR_ONE, CORRIDOR_TWO, INTER_CORRIDOR_TWO, CLOSET_TWO, INTER_CORRIDOR_TWO, CORRIDOR_TWO, CORRIDOR_ONE, INTER_CORRIDOR_ONE, 
-               CLOSET_ONE, INTER_CORRIDOR_ONE, CORRIDOR_ONE, CORRIDOR_TWO, INTER_CORRIDOR_TWO, CLOSET_TWO, INTER_CORRIDOR_TWO, CORRIDOR_TWO, CORRIDOR_ONE, INTER_CORRIDOR_ONE, 
-               CLOSET_ONE, INTER_CORRIDOR_ONE, CORRIDOR_ONE, CORRIDOR_TWO, INTER_CORRIDOR_TWO, CLOSET_TWO, INTER_CORRIDOR_TWO, CORRIDOR_TWO, CORRIDOR_ONE, INTER_CORRIDOR_ONE, 
-               CLOSET_ONE, INTER_CORRIDOR_ONE, CORRIDOR_ONE, CORRIDOR_TWO, INTER_CORRIDOR_TWO, CLOSET_TWO, INTER_CORRIDOR_TWO, CORRIDOR_TWO, CORRIDOR_ONE, INTER_CORRIDOR_ONE, 
-               CLOSET_ONE, INTER_CORRIDOR_ONE, CORRIDOR_ONE, CORRIDOR_TWO, INTER_CORRIDOR_TWO, CLOSET_TWO, INTER_CORRIDOR_TWO, CORRIDOR_TWO, CORRIDOR_ONE, INTER_CORRIDOR_ONE, 
-               CLOSET_ONE, INTER_CORRIDOR_ONE, CORRIDOR_ONE, CORRIDOR_TWO, INTER_CORRIDOR_TWO, CLOSET_TWO, INTER_CORRIDOR_TWO, CORRIDOR_TWO, CORRIDOR_ONE, INTER_CORRIDOR_ONE, 
-               CLOSET_ONE, INTER_CORRIDOR_ONE, CORRIDOR_ONE, CORRIDOR_TWO, INTER_CORRIDOR_TWO, CLOSET_TWO, INTER_CORRIDOR_TWO, CORRIDOR_TWO, CORRIDOR_ONE, INTER_CORRIDOR_ONE, 
-               CLOSET_ONE, INTER_CORRIDOR_ONE, CORRIDOR_ONE, CORRIDOR_TWO, INTER_CORRIDOR_TWO, CLOSET_TWO, INTER_CORRIDOR_TWO, CORRIDOR_TWO, CORRIDOR_ONE, INTER_CORRIDOR_ONE, 
-               CLOSET_ONE, INTER_CORRIDOR_ONE, CORRIDOR_ONE, CORRIDOR_TWO, INTER_CORRIDOR_TWO, CLOSET_TWO, INTER_CORRIDOR_TWO, CORRIDOR_TWO, CORRIDOR_ONE, INTER_CORRIDOR_ONE, 
-               CLOSET_ONE, INTER_CORRIDOR_ONE, CORRIDOR_ONE, CORRIDOR_TWO, INTER_CORRIDOR_TWO, CLOSET_TWO, INTER_CORRIDOR_TWO, CORRIDOR_TWO, CORRIDOR_ONE, INTER_CORRIDOR_ONE, 
-               CLOSET_ONE, INTER_CORRIDOR_ONE, CORRIDOR_ONE, CORRIDOR_TWO, INTER_CORRIDOR_TWO, CLOSET_TWO, INTER_CORRIDOR_TWO, CORRIDOR_TWO, CORRIDOR_ONE, INTER_CORRIDOR_ONE, 
-               CLOSET_ONE, INTER_CORRIDOR_ONE, CORRIDOR_ONE, CORRIDOR_TWO, INTER_CORRIDOR_TWO, CLOSET_TWO, INTER_CORRIDOR_TWO, CORRIDOR_TWO, CORRIDOR_ONE, INTER_CORRIDOR_ONE, 
-               CLOSET_ONE, INTER_CORRIDOR_ONE, CORRIDOR_ONE, CORRIDOR_TWO, INTER_CORRIDOR_TWO, CLOSET_TWO, INTER_CORRIDOR_TWO, CORRIDOR_TWO, CORRIDOR_ONE, INTER_CORRIDOR_ONE, 
-               CLOSET_ONE, INTER_CORRIDOR_ONE, CORRIDOR_ONE, CORRIDOR_TWO, INTER_CORRIDOR_TWO, CLOSET_TWO, INTER_CORRIDOR_TWO, CORRIDOR_TWO, CORRIDOR_ONE, INTER_CORRIDOR_ONE, 
-               CLOSET_ONE, INTER_CORRIDOR_ONE, CORRIDOR_ONE, CORRIDOR_TWO, INTER_CORRIDOR_TWO, CLOSET_TWO, INTER_CORRIDOR_TWO, CORRIDOR_TWO, CORRIDOR_ONE, INTER_CORRIDOR_ONE]
+    defaultTargets = [CLOSET_ONE, INTER_CORRIDOR_ONE, CORRIDOR_ONE, CORRIDOR_TWO, INTER_CORRIDOR_TWO, CLOSET_TWO]
+    targets = [CLOSET_ONE, INTER_CORRIDOR_ONE, CORRIDOR_ONE, CORRIDOR_TWO, INTER_CORRIDOR_TWO, CLOSET_TWO]
 
+    
     # targets = [CLOSET_ONE, 
     #            CORRIDOR_ONE, CORRIDOR_TWO, CLOSET_TWO, CORRIDOR_TWO, CORRIDOR_ONE, CLOSET_ONE,
     #            CORRIDOR_ONE, CORRIDOR_TWO, CLOSET_TWO, CORRIDOR_TWO, CORRIDOR_ONE, CLOSET_ONE,
@@ -189,82 +174,97 @@ def merged_brick():
     #            CORRIDOR_ONE, CORRIDOR_TWO, CLOSET_TWO, CORRIDOR_TWO, CORRIDOR_ONE, CLOSET_ONE,
     #            CORRIDOR_ONE, CORRIDOR_TWO, CLOSET_TWO, CORRIDOR_TWO, CORRIDOR_ONE, CLOSET_ONE
     #            ]
-    
-    while True:
-        try:
-            img = robo.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
-        except Empty:
-            time.sleep(0.001)
-            continue
-        
-        curr_target = targets[0]
-        targets = robo.sequence(targets)
-        close = None
+    file = open_new_file("..\\data")
+    with open(file, "w") as data:
+        while True:
+            try:
+                img = robo.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
+            except Empty:
+                time.sleep(0.001)
+                continue
+            
+            curr_target = targets[targetPointer]
+            closeTag = None
 
-        if curr_target == CLOSET_ONE and ((robo.globalPose[0]-CLOSET_ONE[0])**2+(robo.globalPose[1]-CLOSET_ONE[1])**2)**0.5 < 0.3:
-            # if time.time() - startTime < ultimatum:
-            print("CLOSET ONE FIND")
-            robo.ready_arm()
-            robo.align_with_closet(CLOSET_ONE)
-            detector.run_closet_bricks(robo.ep_camera)
-            print("CLOSET ONE PICKUP")
-            robo.pickup()
-            robo.stow_arm()
-            detector.backup()
-            targets.pop(0)
-            avoidTriggered = False
-            if firstTime:
-                firstTime = False
-            else:
+            # Make robot "go-to" a position, if it hasn't reached target yet it will stay false and not change the pointer
+            if robo.sequence(curr_target):
+                targetPointer += 1
+                if curr_target in defaultTargets:
+                    avoidTriggered = False
+
+            if curr_target == CLOSET_ONE and ((robo.globalPose[0]-CLOSET_ONE[0])**2+(robo.globalPose[1]-CLOSET_ONE[1])**2)**0.5 < 0.15:
+                print("CLOSET ONE FIND")
+                robo.ready_arm()
+                robo.align_with_closet(CLOSET_ONE)
+                detector.run_closet_bricks(robo.ep_camera)
+                print("CLOSET ONE PICKUP")
+                robo.pickup()
+                robo.stow_arm()
+                detector.backup()
+                
+                if firstTime:
+                    firstTime = False
+                    targets.pop(0)
+                    targetPointer = 1
+                else:
+                    targets = targets[::-1]
+                    robo.rotate180()
+                    targetPointer = 1
+
+            if curr_target == CLOSET_TWO and ((robo.globalPose[0]-CLOSET_TWO[0])**2+(robo.globalPose[1]-CLOSET_TWO[1])**2)**0.5 < 0.15:
+                print("CLOSET TWO RELEASE")
+                robo.release()
+                time.sleep(1)
+                robo.stow_arm()
+                detector.backup()
+                targetPointer = 1
+                targets = targets[::-1]
                 robo.rotate180()
+                if not pathComplete:
+                    pathComplete = True
 
-        if curr_target == CLOSET_TWO and ((robo.globalPose[0]-CLOSET_TWO[0])**2+(robo.globalPose[1]-CLOSET_TWO[1])**2)**0.5 < 0.3:
-            # if time.time() - startTime < ultimatum:
-            print("CLOSET TWO RELEASE")
-            robo.release()
-            time.sleep(1)
-            robo.stow_arm()
-            detector.backup()
-            targets.pop(0)
-            robo.rotate180()
+            img = cv2.resize(img, (640, 360))
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            gray.astype(np.uint8)
+            detections = apriltag.find_tags(gray)
+            apriltag.draw_detections(img, detections)
 
-        img = cv2.resize(img, (640, 360))
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        gray.astype(np.uint8)
-        detections = apriltag.find_tags(gray)
-        apriltag.draw_detections(img, detections)
+            if len(detections) > 0:
+                apriltag.movingAvg_tags(detections, robo.globalPose)
 
-        if len(detections) > 0:
-            apriltag.movingAvg_tags(detections, robo.globalPose)
+                closeTag = apriltag.closest(detections)
+                closeTagPos = apriltag.return_global_position(closeTag)
+                closeTagPos_rel = apriltag.get_box_relative(closeTag)
+                if curr_target != CORRIDOR_ONE or curr_target != CORRIDOR_TWO:
+                    dist = closeTagPos_rel[0]**2 + closeTagPos_rel[1]**2
+                    if dist < 0.85 and abs(closeTagPos_rel[0]) < 0.27 and not pathComplete and not avoidTriggered and closeTagPos != None:
+                        destination = robo.avoidTag(closeTagPos, offset=0.6)
+                        targets.insert(targetPointer, destination)
+                        avoidTriggered = True
 
-            closeTag = apriltag.closest(detections)
-            closeTagPos = apriltag.return_global_position(closeTag)
-            closeTagPos_rel = apriltag.get_box_relative(closeTag)
-            if curr_target != CORRIDOR_ONE or curr_target != CORRIDOR_TWO:
-                dist = closeTagPos_rel[0]**2 + closeTagPos_rel[1]**2
-                if dist < 0.85 and abs(closeTagPos_rel[0]) < 0.3 and not avoidTriggered and closeTagPos != None:
-                    destination = robo.avoidTag(closeTagPos, offset=0.6)
-                    targets.insert(0, destination)
-                    avoidTriggered = True
-        
-        # apriltag.troubleshoot() # prints seen tags
+            if closeTagPos == None:
+                closeTagPos = [0, 0]
+            
+            save_data(data, f"{robo.globalPose[0]}, {robo.globalPose[1]}, {curr_target[0]}, {curr_target[1]}, {closeTagPos[0]}, {closeTagPos[1]}\n")
 
-        apriltag.plot_detections(robo.globalPose, graph1, graph2, graph3)            
-        print(f"Current Target: {curr_target}, Side Distance from Box: {closeTagPos_rel[0]}")
-        # print(f'DISTANCE: {((robo.globalPose[0]-CLOSET_TWO[0])**2+(robo.globalPose[1]-CLOSET_TWO[1])**2)**0.5}')
+            # apriltag.troubleshoot() # prints seen tags
 
-        # Display the captured frame
-        cv2.imshow('Camera', img)
+            apriltag.plot_detections(robo.globalPose, graph1, graph2, graph3, graph4, curr_target)            
+            # print(f"Allowed to Retarget: {not(avoidTriggered)}, Current Target: {curr_target}, Side Distance from Box: {closeTagPos_rel[0]}")
+            # print(f'DISTANCE: {((robo.globalPose[0]-CLOSET_TWO[0])**2+(robo.globalPose[1]-CLOSET_TWO[1])**2)**0.5}')
 
-        if cv2.waitKey(1) == ord('z'):
-            break
+            # Display the captured frame
+            cv2.imshow('Camera', img)
+
+            if cv2.waitKey(1) == ord('z'):
+                break
 
 def test_avoid():
     robo.ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
     graph1, graph2, graph3 = apriltag.initGraph()
     robo.get_robotPosition()
     robo.get_robotAngle()
-
+    
     while True:
         try:
             img = robo.ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
@@ -309,6 +309,29 @@ def show_camera_feed():
 
         if cv2.waitKey(1) == ord('q'):
             break
+
+def open_new_file(filepath):
+    '''
+    Saves content to a new file, avoiding overwriting existing files.
+
+    Args:
+        filepath: The desired file path (including filename).
+        content: The content to write to the file.
+    '''
+    
+    _, ext = os.path.splitext(filepath)
+    count = 1
+    while os.path.exists(filepath):
+        filepath = f"data_{count}{ext}"
+        count += 1
+    
+    return filepath
+
+def save_data(file, content):
+    try:
+        file.write(content)
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 def doarmstuff():
     # robo.get_gripper_status()

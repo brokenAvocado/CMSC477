@@ -143,7 +143,7 @@ class motion:
         '''
         print(180/np.pi*np.arctan2(target_x, target_y))
 
-    def go_to(self, target_x, target_y, flipTol = 0.5, speed_mult = 0.4, speed_offset=0.05):
+    def go_to(self, target_x, target_y, distTol = 0.15, speed_mult = 0.4, speed_offset=0.05):
         '''
         Takes global x and y target positions and converts it to relative
         kinematic commands
@@ -173,7 +173,7 @@ class motion:
 
         #print(f"Goal: {target_z}, Current: {self.globalPose[2]}, CurrentVel: {vel_z}")
 
-        if abs(dist_rel) < 0.1:
+        if abs(dist_rel) < distTol:
             vel_x = 0
             return True
         else:
@@ -196,16 +196,18 @@ class motion:
     def distance(self, pos1, pos2):
         return ((pos1[0]-pos2[0])**2 + (pos1[1]-pos2[1])**2)**0.5
         
-    def sequence(self, targets):
+    def sequence(self, target):
         '''
         Takes an array of global positional points that the robot needs to go,
         Sequentially runs each point that it needs to go to
         '''
-        pos = targets[0]
+        pos = target
         moveOn = self.go_to(pos[0], pos[1])
-        if moveOn:
-            targets.pop(0)
-        return targets
+
+        return moveOn
+        # if moveOn:
+        #     targets.pop(0)
+        # return targets
 
     def rotate_to(self, target_z, rotate_tol = 0.3, speedMult = 0.05, direction = -1, flipTol = 1):
         '''
