@@ -128,14 +128,15 @@ def test_smoothMotion():
         if cv2.waitKey(1) == ord('z'):
             break
 
-CLOSET_ONE = [3, 1.0]
+CLOSET_ONE = [3, 1.1]
 CLOSET_ONE_CORNER1 = [3, 0.8]
 CLOSET_TWO = [0.4, 5.2]
 CLOSET_TWO_CORNER1 = [0.4, 5.5]
 CORRIDOR_ONE = [1.8, 2.6]
-INTER_CORRIDOR_ONE = [2.0, 1.8]
-CORRIDOR_TWO = [1.8, 3.8]
-INTER_CORRIDOR_TWO = [1.6, 4.6]
+INTER_CORRIDOR_ONE = [2.0, 1.95]
+INTER2_CORRIDOR_ONE = [2.0, 1.1]
+CORRIDOR_TWO = [2.0, 3.8]
+INTER_CORRIDOR_TWO = [1.6, 4.45]
 
 def merged_brick():
     robo.stow_arm()

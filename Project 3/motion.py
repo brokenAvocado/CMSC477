@@ -179,21 +179,22 @@ class motion:
         else:
             return False
         
-    def avoidTag(self, tagPose, offset=0.266, speed_mult = 1, dist_thres = 0.20):
-        if tagPose != None:
-            sideDist = tagPose[1]
-            fwdDist = tagPose[0]
-            direction = -sideDist/abs(sideDist)
-            print(f"Tag Position {sideDist} and Direction {direction}")
-            if abs(fwdDist) < dist_thres: 
-                self.vel_y = speed_mult*np.arctan(direction*(abs(sideDist)-offset))
-            else:
-                self.vel_y = 0
-        else:
-            self.vel_y = 0
+    def avoidTag(self, tagPos, offset=0.266):
+        oldX = tagPos[0]
+        oldY = tagPos[1]
 
-        # self.ep_chassis.drive_speed(x=0, y=vel_y, z=0, timeout=0.1)
+        newX = offset*np.cos(np.pi/180*self.globalPose[2])
+        newY = offset*np.sin(np.pi/180*self.globalPose[2])
 
+        print(f"New Positions: {newX}, {newY}")
+
+        newX = oldX - newX
+        newY = oldY - newY
+
+        return [newX, newY]
+
+    def distance(self, pos1, pos2):
+        return ((pos1[0]-pos2[0])**2 + (pos1[1]-pos2[1])**2)**0.5
         
     def sequence(self, targets):
         '''
@@ -222,7 +223,7 @@ class motion:
         
     def rotate180(self):
         self.ep_chassis.drive_speed(x=0, y=0, z=60, timeout=4)
-        time.sleep(3)
+        time.sleep(3.5)
         self.ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.1)
 
     def avoid_tag(self, obstacles, front_distance=0.6, window_width=0.6, offset_distance=0.4):
@@ -292,10 +293,10 @@ class motion:
 
             vel_z = self.rotate_to(angle)
 
-            if vel_z == 0:
+            if vel_z <= 1:
                 return
             else:
-                self.ep_chassis.drive_speed(x=0, y=0, z=vel_z*1.5, timeout=0.1)
+                self.ep_chassis.drive_speed(x=0, y=0, z=vel_z*3, timeout=0.1)
 
     def teleop(self):
         move_speed = 0.3

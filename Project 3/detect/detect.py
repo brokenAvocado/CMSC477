@@ -245,7 +245,9 @@ class Detector:
                 for box in result.boxes:
                     # Get [x1, y1, x2, y2] as integers
                     xyxy = box.xyxy.cpu().numpy().flatten().astype(int)
-                    boxes.append(tuple(xyxy))  # Add as tuple (x1, y1, x2, y2)
+                    x1, y1, x2, y2 = xyxy[0], xyxy[1], xyxy[2], xyxy[3]
+                    area = (x2-x1)*(y2-y1)
+                    boxes.append(area)  # Add as tuple (x1, y1, x2, y2)
 
         return boxes
 
@@ -300,7 +302,7 @@ class Detector:
 
         return cx, cy
     
-    def align_to_brick(self, cx, threshold=10):
+    def align_to_brick(self, cx, threshold=10, rotationRate=10):
         frame_width = self.frame_shape[1]
         center_x = frame_width // 2
         offset = cx - center_x
@@ -312,10 +314,10 @@ class Detector:
         if offset < 0:
             print("Brick is left — turning left")
             # chassis.rotate(angle=-5)  # Turn left 5 degrees
-            self.ep_chassis.drive_speed(x=0, y=0, z=-7, timeout=0.1)
+            self.ep_chassis.drive_speed(x=0, y=0, z=-rotationRate, timeout=0.1)
         else:
             print("Brick is right — turning right")
-            self.ep_chassis.drive_speed(x=0, y=0, z=7, timeout=0.1)
+            self.ep_chassis.drive_speed(x=0, y=0, z=rotationRate, timeout=0.1)
 
     def approach(self, cy, tolerance=200):
         frame_height = self.frame_shape[0]

@@ -69,6 +69,24 @@ class AprilTagDetector: # Given
     def troubleshoot(self):
         print(f"Obstacle Pointers {self.obstaclesPointers} Obstacle Pos {self.obstaclePos}")
     
+    def return_global_position(self, detection):
+        # Use the companion dictionary to find if the AprilTag is already logged in obstacles
+        id = detection.tag_id
+        companions = self.obstacles[id]
+        actualID = id
+
+        if actualID not in self.obstaclePos:
+            for companion_id in companions:
+                if companion_id in self.obstaclePos:
+                    actualID = companion_id
+                    return self.obstaclePos[actualID]
+                
+        if actualID in self.obstaclePos:
+            return self.obstaclePos[actualID]
+    
+    def distance(self, pos1, pos2):
+        return ((pos1[0]-pos2[0])**2 + (pos1[1]-pos2[1])**2)**0.5
+
     def refine_tags(self, detection, robot_global_pose, window):
         '''
         Using positional data, will detect if the tag is a new tag and make an empty
@@ -215,7 +233,7 @@ class AprilTagDetector: # Given
 
     #     for tags in detection:
 
-    def closestPosition(self, detections):
+    def closest(self, detections):
         closestDist = float('inf')
         closestTag = 0
 
@@ -228,7 +246,7 @@ class AprilTagDetector: # Given
         if closestTag == 0:
             return None
         
-        return self.get_box_relative(closestTag)
+        return closestTag
     
     '''
     Visualization Scripts

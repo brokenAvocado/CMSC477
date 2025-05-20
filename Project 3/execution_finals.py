@@ -128,14 +128,15 @@ def test_smoothMotion():
         if cv2.waitKey(1) == ord('z'):
             break
 
-CLOSET_ONE = [3, 1.0]
+CLOSET_ONE = [3, 0.9]
 CLOSET_ONE_CORNER1 = [3, 0.8]
 CLOSET_TWO = [0.4, 5.2]
 CLOSET_TWO_CORNER1 = [0.4, 5.5]
 CORRIDOR_ONE = [1.8, 2.6]
-INTER_CORRIDOR_ONE = [2.0, 1.8]
-CORRIDOR_TWO = [1.8, 3.8]
-INTER_CORRIDOR_TWO = [1.6, 4.6]
+INTER_CORRIDOR_ONE = [2.0, 1.95]
+INTER2_CORRIDOR_ONE = [2.0, 1.1]
+CORRIDOR_TWO = [2.0, 3.8]
+INTER_CORRIDOR_TWO = [1.6, 4.45]
 
 def merged_brick():
     robo.stow_arm()
@@ -145,8 +146,7 @@ def merged_brick():
     robo.get_robotPosition()
     robo.get_robotAngle()
     firstTime = True
-    startTime = time.time()
-    ultimatum = 0.5*60
+    avoidTriggered = False
 
     targets = [CLOSET_ONE, INTER_CORRIDOR_ONE, CORRIDOR_ONE, CORRIDOR_TWO, INTER_CORRIDOR_TWO, CLOSET_TWO, INTER_CORRIDOR_TWO, CORRIDOR_TWO, CORRIDOR_ONE, INTER_CORRIDOR_ONE, 
                CLOSET_ONE, INTER_CORRIDOR_ONE, CORRIDOR_ONE, CORRIDOR_TWO, INTER_CORRIDOR_TWO, CLOSET_TWO, INTER_CORRIDOR_TWO, CORRIDOR_TWO, CORRIDOR_ONE, INTER_CORRIDOR_ONE, 
@@ -201,10 +201,7 @@ def merged_brick():
         targets = robo.sequence(targets)
         close = None
 
-        print(curr_target)
-        print(f'DISTANCE: {((robo.globalPose[0]-CLOSET_TWO[0])**2+(robo.globalPose[1]-CLOSET_TWO[1])**2)**0.5}')
-
-        if curr_target == CLOSET_ONE and ((robo.globalPose[0]-CLOSET_ONE[0])**2+(robo.globalPose[1]-CLOSET_ONE[1])**2)**0.5 < .3:
+        if curr_target == CLOSET_ONE and ((robo.globalPose[0]-CLOSET_ONE[0])**2+(robo.globalPose[1]-CLOSET_ONE[1])**2)**0.5 < 0.3:
             # if time.time() - startTime < ultimatum:
             print("CLOSET ONE FIND")
             robo.ready_arm()
@@ -215,15 +212,13 @@ def merged_brick():
             robo.stow_arm()
             detector.backup()
             targets.pop(0)
+            avoidTriggered = False
             if firstTime:
                 firstTime = False
             else:
                 robo.rotate180()
-            # else:
-            #     print("THE FINAL COUNT DOWN")
-            #     targets.insert(0, CLOSET_ONE_CORNER1)
 
-        if curr_target == CLOSET_TWO and ((robo.globalPose[0]-CLOSET_TWO[0])**2+(robo.globalPose[1]-CLOSET_TWO[1])**2)**0.5 < .3:
+        if curr_target == CLOSET_TWO and ((robo.globalPose[0]-CLOSET_TWO[0])**2+(robo.globalPose[1]-CLOSET_TWO[1])**2)**0.5 < 0.3:
             # if time.time() - startTime < ultimatum:
             print("CLOSET TWO RELEASE")
             robo.release()
@@ -232,14 +227,6 @@ def merged_brick():
             detector.backup()
             targets.pop(0)
             robo.rotate180()
-            # else:
-            #     print("THE FINAL COUNT DOWN")
-            #     targets.insert(0, CLOSET_TWO_CORNER1)
-
-        # if ((robo.globalPose[0]-CORRIDOR_ONE[0])**2+(robo.globalPose[1]-CORRIDOR_ONE[1])**2)**0.5 > .2:
-        #     robo.avoidTag(close, dist_thres=0.3)
-        # elif ((robo.globalPose[0]-CORRIDOR_TWO[0])**2+(robo.globalPose[1]-CORRIDOR_TWO[1])**2)**0.5 > .2:
-        #     robo.avoidTag(close, dist_thres=0.3)
 
         img = cv2.resize(img, (640, 360))
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -249,14 +236,22 @@ def merged_brick():
 
         if len(detections) > 0:
             apriltag.movingAvg_tags(detections, robo.globalPose)
-            close = apriltag.closestPosition(detections)
-            
-        # apriltag.troubleshoot()
-        # print(robo.vel_y)
+
+            closeTag = apriltag.closest(detections)
+            closeTagPos = apriltag.return_global_position(closeTag)
+            closeTagPos_rel = apriltag.get_box_relative(closeTag)
+            if curr_target != CORRIDOR_ONE or curr_target != CORRIDOR_TWO:
+                dist = closeTagPos_rel[0]**2 + closeTagPos_rel[1]**2
+                if dist < 0.85 and abs(closeTagPos_rel[0]) < 0.3 and not avoidTriggered and closeTagPos != None:
+                    destination = robo.avoidTag(closeTagPos, offset=0.6)
+                    targets.insert(0, destination)
+                    avoidTriggered = True
         
         # apriltag.troubleshoot() # prints seen tags
 
         apriltag.plot_detections(robo.globalPose, graph1, graph2, graph3)            
+        print(f"Current Target: {curr_target}, Side Distance from Box: {closeTagPos_rel[0]}")
+        # print(f'DISTANCE: {((robo.globalPose[0]-CLOSET_TWO[0])**2+(robo.globalPose[1]-CLOSET_TWO[1])**2)**0.5}')
 
         # Display the captured frame
         cv2.imshow('Camera', img)
